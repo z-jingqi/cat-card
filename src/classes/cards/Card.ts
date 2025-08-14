@@ -16,7 +16,7 @@ export abstract class Card {
   id: string;
   name: string;
   description: string;
-  sprite: Phaser.GameObjects.Sprite;
+  public sprite: Phaser.GameObjects.Sprite;
   
   protected scene: Phaser.Scene;
   protected selected: boolean = false;

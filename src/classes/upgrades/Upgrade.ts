@@ -36,7 +36,7 @@ export class Upgrade {
   tier: 1 | 2 | 3;
   iconKey: string;
   
-  private sprite: Phaser.GameObjects.Sprite | null = null;
+  public sprite: Phaser.GameObjects.Sprite | null = null;
   private isActive: boolean = false;
   private isEquipped: boolean = false;
   
@@ -76,11 +76,16 @@ export class Upgrade {
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
+    // 添加描述文本并将它们关联到精灵，以便后续可以一起销毁
     const descText = scene.add.text(x, y + 30, this.getShortDescription(), {
       fontSize: '10px',
       color: '#eeeeee',
       wordWrap: { width: 100 }
     }).setOrigin(0.5);
+    
+    // 保存文本引用到精灵
+    this.sprite.setData('nameText', nameText);
+    this.sprite.setData('descText', descText);
     
     // 添加交互
     this.sprite.setInteractive();
@@ -171,10 +176,10 @@ export class Upgrade {
    * 应用增益效果
    * @param battleScene 战斗场景实例，用于获取需要修改的对象
    */
-  applyEffect(battleScene: any): void {
+  applyEffect(_battleScene: any): void {
     if (!this.isEquipped || !this.isActive) return;
     
-    const { target, value, condition } = this.effect;
+    const { target, value } = this.effect;
     
     // 这里的实现会依赖于完整的游戏系统
     // 简单示例，后续需要根据实际场景进行调整
