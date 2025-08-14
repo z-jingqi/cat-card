@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
 import { ShopSystem } from '../classes/systems/ShopSystem';
 import { ResourceSystem } from '../classes/systems/ResourceSystem';
+import { AudioManager } from '../classes/systems/AudioManager';
+import { AnimationManager } from '../classes/systems/AnimationManager';
 import { CatnipDisplay } from '../ui/CatnipDisplay';
 import { Upgrade } from '../classes/upgrades/Upgrade';
+import { Button } from '../ui/Button';
+import { SettingsMenu } from '../ui/SettingsMenu';
 
 /**
  * 商店场景
@@ -12,6 +16,8 @@ export default class ShopScene extends Phaser.Scene {
   // 系统组件
   private shopSystem!: ShopSystem;
   private resourceSystem!: ResourceSystem;
+  private audioManager!: AudioManager;
+  private animationManager!: AnimationManager;
   
   // UI组件
   private catnipDisplay!: CatnipDisplay;
@@ -21,6 +27,10 @@ export default class ShopScene extends Phaser.Scene {
   private purchasedItemsContainer!: Phaser.GameObjects.Container;
   private refreshButton!: Phaser.GameObjects.Container;
   private continueButton!: Phaser.GameObjects.Container;
+  
+  // 设置菜单
+  private settingsMenu!: SettingsMenu;
+  private settingsButton!: Button;
   
   // 当前关卡
   private currentLevel: number = 1;
@@ -53,12 +63,29 @@ export default class ShopScene extends Phaser.Scene {
       if (data.resourceSystem) {
         this.resourceSystem = data.resourceSystem;
       }
+      
+      // 如果有音频管理器，使用它
+      if (data.audioManager) {
+        this.audioManager = data.audioManager;
+      }
     }
   }
   
   create(): void {
     // 创建背景
     this.createBackground();
+    
+    // 初始化音频管理器（如果没有从上一个场景传递过来）
+    if (!this.audioManager) {
+      this.audioManager = new AudioManager(this);
+      this.audioManager.init();
+    }
+    
+    // 初始化动画管理器
+    this.animationManager = new AnimationManager(this);
+    
+    // 播放背景音乐
+    this.audioManager.playMusic('shop_music');
     
     // 初始化资源系统（如果没有从上一个场景传递过来）
     if (!this.resourceSystem) {
@@ -157,6 +184,27 @@ export default class ShopScene extends Phaser.Scene {
     
     // 显示已购买物品
     this.displayPurchasedItems();
+    
+    // 创建设置按钮
+    this.settingsButton = new Button(
+      this,
+      this.cameras.main.width - 50,
+      50,
+      40,
+      40,
+      '⚙️',
+      {
+        backgroundColor: 0x2196F3,
+        fontSize: '20px'
+      },
+      () => {
+        this.openSettings();
+      },
+      this.audioManager
+    );
+    
+    // 创建设置菜单
+    this.settingsMenu = new SettingsMenu(this, this.audioManager);
   }
   
   /**
@@ -504,24 +552,49 @@ export default class ShopScene extends Phaser.Scene {
    * 刷新商店
    */
   private refreshShop(): void {
-    this.shopSystem.refreshShop();
+    // 播放按钮点击音效
+    this.audioManager.playSfx('button_click');
+    
+    // 尝试刷新商店
+    const success = this.shopSystem.refreshShop();
+    
+    // 如果成功刷新，播放刷新音效
+    if (success) {
+      this.audioManager.playSfx('card_draw');
+      
+      // 播放按钮动画
+      this.animationManager.playButtonClickAnimation(this.refreshButton);
+    }
   }
   
   /**
    * 购买升级
    */
   private purchaseUpgrade(upgradeId: string): void {
-    this.shopSystem.purchaseUpgrade(upgradeId);
+    // 尝试购买升级
+    const success = this.shopSystem.purchaseUpgrade(upgradeId);
+    
+    // 如果成功购买，播放购买音效
+    if (success) {
+      this.audioManager.playSfx('purchase');
+      
+      // 播放资源消耗音效
+      this.audioManager.playSfx('catnip_spend');
+    }
   }
   
   /**
    * 继续到下一关
    */
   private continueToNextLevel(): void {
+    // 播放按钮点击音效
+    this.audioManager.playSfx('button_click');
+    
     // 传递数据到战斗场景
     this.scene.start('BattleScene', {
       level: this.nextLevel,
       resourceSystem: this.resourceSystem,
+      audioManager: this.audioManager,
       purchasedUpgrades: this.shopSystem.getPurchasedUpgrades()
     });
   }
@@ -658,6 +731,13 @@ export default class ShopScene extends Phaser.Scene {
    */
   private showWelcomeMessage(): void {
     this.showMessage(`欢迎来到猫薄荷商店！\n使用猫薄荷购买永久增益`, '#4caf50', 3000);
+  }
+  
+  /**
+   * 打开设置菜单
+   */
+  private openSettings(): void {
+    this.settingsMenu.open();
   }
   
   /**

@@ -4,23 +4,29 @@ import { CardOrderManager } from "../classes/systems/CardOrderManager";
 import { CardPlaySystem } from "../classes/systems/CardPlaySystem";
 import { DeckSystem } from "../classes/systems/DeckSystem";
 import { ResourceSystem } from "../classes/systems/ResourceSystem";
+import { AudioManager } from "../classes/systems/AudioManager";
+import { AnimationManager } from "../classes/systems/AnimationManager";
 import { CatCard } from "../classes/cards/CatCard";
 import { SupportCard } from "../classes/cards/SupportCard";
 import { BOSSES } from "../constants/bosses";
 import { CAT_CARDS, SUPPORT_CARDS } from "../constants/cards";
 import { CatnipDisplay } from "../ui/CatnipDisplay";
+import { Button } from "../ui/Button";
+import { SettingsMenu } from "../ui/SettingsMenu";
 
 /**
  * 战斗场景
  * 整合各系统，实现完整的战斗流程
  */
 export default class BattleScene extends Phaser.Scene {
-    // 系统组件
+      // 系统组件
   private boss!: Boss;
   private cardOrderManager!: CardOrderManager;
   private cardPlaySystem!: CardPlaySystem;
   private deckSystem!: DeckSystem;
   private resourceSystem!: ResourceSystem;
+  private audioManager!: AudioManager;
+  private animationManager!: AnimationManager;
   
   // 玩家状态
     private playerHp: number = 100;
@@ -35,6 +41,10 @@ export default class BattleScene extends Phaser.Scene {
   private remainingPlaysText!: Phaser.GameObjects.Text;
   private turnText!: Phaser.GameObjects.Text;
   private redrawsText!: Phaser.GameObjects.Text;
+  
+  // 设置菜单
+  private settingsMenu!: SettingsMenu;
+  private settingsButton!: Button;
 
   // 控制按钮
   private playButton!: Phaser.GameObjects.Text;
@@ -72,6 +82,11 @@ export default class BattleScene extends Phaser.Scene {
                 this.resourceSystem = data.resourceSystem;
             }
             
+            // 如果有音频管理器，使用它
+            if (data.audioManager) {
+                this.audioManager = data.audioManager;
+            }
+            
             // 如果有已购买的升级，保存它们
             if (data.purchasedUpgrades) {
                 // 这里会在后续实现永久增益系统时使用
@@ -83,6 +98,18 @@ export default class BattleScene extends Phaser.Scene {
     create(): void {
     // 创建背景
     this.createBackground();
+    
+    // 初始化音频管理器（如果没有从上一个场景传递过来）
+    if (!this.audioManager) {
+      this.audioManager = new AudioManager(this);
+      this.audioManager.init();
+    }
+    
+    // 初始化动画管理器
+    this.animationManager = new AnimationManager(this);
+    
+    // 播放背景音乐
+    this.audioManager.playMusic('battle_music');
     
     // 初始化BOSS
     this.createBoss();
@@ -265,6 +292,27 @@ export default class BattleScene extends Phaser.Scene {
       fontSize: "18px",
       color: "#333",
     });
+    
+    // 创建设置按钮
+    this.settingsButton = new Button(
+      this,
+      this.cameras.main.width - 50,
+      50,
+      40,
+      40,
+      '⚙️',
+      {
+        backgroundColor: 0x2196F3,
+        fontSize: '20px'
+      },
+      () => {
+        this.openSettings();
+      },
+      this.audioManager
+    );
+    
+    // 创建设置菜单
+    this.settingsMenu = new SettingsMenu(this, this.audioManager);
   }
 
   /**
@@ -549,6 +597,22 @@ export default class BattleScene extends Phaser.Scene {
    */
   private onCardsPlayed(cards: (CatCard | SupportCard)[]): void {
     console.log(`使用了 ${cards.length} 张卡片`);
+    
+    // 播放卡片使用音效
+    this.audioManager.playSfx('card_play');
+    
+    // 对于每张卡片，播放使用动画
+    cards.forEach(card => {
+      if (card.sprite) {
+        // 使用动画管理器播放卡片使用动画
+        this.animationManager.playCardAnimation(
+          card.sprite as Phaser.GameObjects.Sprite,
+          this.cameras.main.width / 2,
+          this.cameras.main.height / 2
+        );
+      }
+    });
+    
     this.updateUI();
   }
 
@@ -557,6 +621,15 @@ export default class BattleScene extends Phaser.Scene {
    */
   private onBossDefeated(boss: Boss): void {
     console.log(`BOSS ${boss.name} 被击败!`);
+    
+    // 播放胜利音效
+    this.audioManager.playSfx('victory');
+    
+    // 播放胜利动画
+    this.animationManager.playVictoryAnimation(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 3
+    );
     
     // 计算并添加猫薄荷奖励
     const turnsUsed = this.cardPlaySystem.getCurrentTurn();
@@ -570,7 +643,17 @@ export default class BattleScene extends Phaser.Scene {
     // 延迟一下添加奖励，让玩家先看到胜利画面
     this.time.delayedCall(1000, () => {
       this.resourceSystem.addCatnip(reward, `击败BOSS: ${boss.name}`);
+      this.audioManager.playSfx('catnip_gain');
       this.showMessage(`获得猫薄荷: ${reward}`, "#4CAF50");
+      
+      // 播放资源获取动画
+      this.animationManager.playCatnipGainAnimation(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2,
+        reward,
+        this.cameras.main.width - 120,
+        50
+      );
     });
     
     this.showVictoryScreen();
@@ -731,11 +814,15 @@ export default class BattleScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive()
       .on("pointerdown", () => {
+        // 播放按钮点击音效
+        this.audioManager.playSfx('button_click');
+        
         // 跳转到商店场景
         this.scene.start('ShopScene', {
           currentLevel: this.currentLevel,
           nextLevel: this.currentLevel + 1,
-          resourceSystem: this.resourceSystem
+          resourceSystem: this.resourceSystem,
+          audioManager: this.audioManager
         });
       });
 
@@ -813,7 +900,7 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
-  /**
+    /**
    * 禁用所有交互
    */
   private disableAllInteractions(): void {
@@ -821,14 +908,21 @@ export default class BattleScene extends Phaser.Scene {
     this.playButton.disableInteractive();
     this.endTurnButton.disableInteractive();
     this.redrawButton.disableInteractive();
-
+    
     // 禁用卡片交互
     const catCards = this.cardOrderManager.getOrderedCatCards();
     const supportCards = this.cardOrderManager.getOrderedSupportCards();
-
+    
     for (const card of [...catCards, ...supportCards]) {
       card.disableInteraction();
     }
+  }
+  
+  /**
+   * 打开设置菜单
+   */
+  private openSettings(): void {
+    this.settingsMenu.open();
   }
 
   /**
