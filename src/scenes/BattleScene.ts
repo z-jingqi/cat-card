@@ -54,7 +54,30 @@ export default class BattleScene extends Phaser.Scene {
   };
 
     constructor() {
-    super({ key: "BattleScene" });
+        super({ key: "BattleScene" });
+    }
+    
+    /**
+     * 初始化场景数据
+     */
+    init(data: any): void {
+        // 从上一个场景获取数据
+        if (data) {
+            if (data.level) {
+                this.currentLevel = data.level;
+            }
+            
+            // 如果有资源系统，使用它
+            if (data.resourceSystem) {
+                this.resourceSystem = data.resourceSystem;
+            }
+            
+            // 如果有已购买的升级，保存它们
+            if (data.purchasedUpgrades) {
+                // 这里会在后续实现永久增益系统时使用
+                console.log(`接收到 ${data.purchasedUpgrades.length} 个已购买的永久增益`);
+            }
+        }
     }
 
     create(): void {
@@ -86,8 +109,10 @@ export default class BattleScene extends Phaser.Scene {
       this.boss
     );
     
-    // 初始化资源系统
-    this.resourceSystem = new ResourceSystem(this, 10); // 初始10个猫薄荷
+    // 初始化资源系统（如果没有从上一个场景传递过来）
+    if (!this.resourceSystem) {
+      this.resourceSystem = new ResourceSystem(this, 10); // 初始10个猫薄荷
+    }
     
     // 创建UI元素
     this.createUI();
@@ -706,9 +731,12 @@ export default class BattleScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive()
       .on("pointerdown", () => {
-        // 这里应该跳转到商店场景或下一关
-        console.log("继续到下一关或商店");
-        // this.scene.start('ShopScene');
+        // 跳转到商店场景
+        this.scene.start('ShopScene', {
+          currentLevel: this.currentLevel,
+          nextLevel: this.currentLevel + 1,
+          resourceSystem: this.resourceSystem
+        });
       });
 
     // 添加按钮动画
