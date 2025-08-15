@@ -125,13 +125,13 @@ export const SUPPORT_CARDS: SupportCardConfig[] = [
     value: 2 // 抽取2张卡
   },
   
-  // 激光笔
+  // 纸箱
   {
-    id: 'laser_1',
-    name: '激光笔',
-    description: '猫咪追逐激光点会变得更加敏捷，提高暴击几率',
-    spriteKey: 'item_laser',
-    itemType: CatItemType.LASER,
+    id: 'box_1',
+    name: '纸箱',
+    description: '猫咪追逐纸箱会变得更加敏捷，提高暴击几率',
+    spriteKey: 'item_box',
+    itemType: CatItemType.BOX,
     effect: SupportEffectType.CRITICAL_CHANCE,
     value: 20 // 20%暴击几率
   }

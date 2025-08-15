@@ -10,12 +10,14 @@ import { CardOrderManager } from '../../classes/systems/CardOrderManager';
 export class CardRenderer {
   private scene: Phaser.Scene;
   private cardOrderManager: CardOrderManager;
+  private labelsCreated: boolean = false; // 防止重复创建标签
+  private renderedCardIds: Set<string> = new Set(); // 跟踪已渲染的卡片
   
   // 卡片布局配置
-  private readonly CAT_CARDS_Y = 420;
-  private readonly SUPPORT_CARDS_Y = 480;
-  private readonly CARD_SPACING = 120;
-  private readonly CARD_START_X = 100;
+  private readonly CARDS_Y = 420; // 统一的Y坐标
+  private readonly CARD_SPACING = 105; // 卡片间距
+  private readonly CAT_CARDS_START_X = 80; // 猫咪卡片起始X坐标
+  private readonly SUPPORT_CARDS_START_X = 520; // 辅助卡片起始X坐标
   
   constructor(scene: Phaser.Scene, cardOrderManager: CardOrderManager) {
     this.scene = scene;
@@ -26,8 +28,40 @@ export class CardRenderer {
    * 初始化渲染所有卡片
    */
   initRender(): void {
+    if (!this.labelsCreated) {
+      this.createLayoutLabels();
+      this.labelsCreated = true;
+    }
     this.renderCatCards(this.cardOrderManager.getOrderedCatCards());
     this.renderSupportCards(this.cardOrderManager.getOrderedSupportCards());
+  }
+
+  /**
+   * 创建布局标签和分隔线
+   */
+  private createLayoutLabels(): void {
+    // 猫咪卡片区域标签
+    this.scene.add.text(this.CAT_CARDS_START_X + 50, this.CARDS_Y - 80, '猫咪卡片', {
+      fontSize: '18px',
+      color: '#2c3e50',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5);
+
+    // 辅助卡片区域标签
+    this.scene.add.text(this.SUPPORT_CARDS_START_X + 50, this.CARDS_Y - 80, '辅助卡片', {
+      fontSize: '18px',
+      color: '#2c3e50',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5);
+
+    // 中间分隔线
+    const separatorX = (this.CAT_CARDS_START_X + this.SUPPORT_CARDS_START_X) / 2 + 50;
+    this.scene.add.rectangle(
+      separatorX, this.CARDS_Y - 20,
+      2, 160,
+      0xbdc3c7,
+      0.6
+    );
   }
 
   /**
@@ -35,7 +69,7 @@ export class CardRenderer {
    */
   private renderCatCards(cards: CatCard[]): void {
     cards.forEach((card, index) => {
-      this.renderCard(card, index, this.CAT_CARDS_Y, 'cat');
+      this.renderCard(card, index, this.CARDS_Y, 'cat');
     });
   }
 
@@ -44,7 +78,7 @@ export class CardRenderer {
    */
   private renderSupportCards(cards: SupportCard[]): void {
     cards.forEach((card, index) => {
-      this.renderCard(card, index, this.SUPPORT_CARDS_Y, 'support');
+      this.renderCard(card, index, this.CARDS_Y, 'support');
     });
   }
 
@@ -57,14 +91,13 @@ export class CardRenderer {
     y: number, 
     type: 'cat' | 'support'
   ): void {
-    // 如果卡片已经有sprite，更新位置
-    if (card.sprite) {
-      this.updateCardPosition(card, index, y);
+    // 如果卡片已经渲染，跳过
+    if (this.renderedCardIds.has(card.id) && card.sprite) {
       return;
     }
 
     // 创建新的卡片显示
-    const x = this.CARD_START_X + index * this.CARD_SPACING;
+    const x = (type === 'cat' ? this.CAT_CARDS_START_X : this.SUPPORT_CARDS_START_X) + index * this.CARD_SPACING;
     
     // 创建卡片背景
     const cardBg = this.scene.add.rectangle(x, y, 100, 140, 0xffffff, 0.9);
@@ -133,6 +166,9 @@ export class CardRenderer {
     
     // 将容器设置为卡片的sprite（临时解决方案）
     (card as any).sprite = cardContainer;
+    
+    // 标记为已渲染
+    this.renderedCardIds.add(card.id);
   }
 
   /**
@@ -144,7 +180,8 @@ export class CardRenderer {
     y: number
   ): void {
     if (card.sprite) {
-      const targetX = this.CARD_START_X + index * this.CARD_SPACING;
+      const cardType = card instanceof CatCard ? 'cat' : 'support';
+      const targetX = (cardType === 'cat' ? this.CAT_CARDS_START_X : this.SUPPORT_CARDS_START_X) + index * this.CARD_SPACING;
       
       this.scene.tweens.add({
         targets: card.sprite,
@@ -164,11 +201,11 @@ export class CardRenderer {
     const supportCards = this.cardOrderManager.getOrderedSupportCards();
     
     catCards.forEach((card, index) => {
-      this.updateCardPosition(card, index, this.CAT_CARDS_Y);
+      this.updateCardPosition(card, index, this.CARDS_Y);
     });
     
     supportCards.forEach((card, index) => {
-      this.updateCardPosition(card, index, this.SUPPORT_CARDS_Y);
+      this.updateCardPosition(card, index, this.CARDS_Y);
     });
   }
 
@@ -253,7 +290,14 @@ export class CardRenderer {
       if (card.sprite) {
         card.sprite.destroy();
         (card as any).sprite = null;
+        this.renderedCardIds.delete(card.id); // 从已渲染集合中移除
       }
     });
+    
+    // 重置渲染集合
+    this.renderedCardIds.clear();
+    
+    // 注释：不重置 labelsCreated，让标签只创建一次
+    // this.labelsCreated = false;
   }
 }

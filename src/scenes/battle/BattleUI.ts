@@ -199,7 +199,7 @@ export class BattleUI {
    * 创建帮助文本
    */
   private createHelpText(): void {
-    this.scene.add.text(50, 520, "提示: 点击卡片选择，拖拽卡片调整顺序", {
+    this.scene.add.text(50, 520, "提示: 左侧猫咪卡片，右侧辅助卡片，点击选择卡片", {
       fontSize: "18px",
       color: "#333",
     });

@@ -139,18 +139,18 @@ export default class PreloadScene extends Phaser.Scene {
       this.loadImageWithFallback('support_card_background', 'assets/images/cards/support_card_background.png');
       
       // 加载猫咪图片
-      this.loadImageWithFallback('cat_maine_coon', 'assets/images/cats/maine_coon.png');
-      this.loadImageWithFallback('cat_siamese', 'assets/images/cats/siamese.png');
-      this.loadImageWithFallback('cat_bengal', 'assets/images/cats/bengal.png');
-      this.loadImageWithFallback('cat_ragdoll', 'assets/images/cats/ragdoll.png');
-      this.loadImageWithFallback('cat_american_shorthair', 'assets/images/cats/american_shorthair.png');
+      this.loadImageWithFallback('cat_maine_coon', 'assets/images/cats/maine_coon.jpg');
+      this.loadImageWithFallback('cat_siamese', 'assets/images/cats/siamese.jpg');
+      this.loadImageWithFallback('cat_bengal', 'assets/images/cats/bengal.jpg');
+      this.loadImageWithFallback('cat_ragdoll', 'assets/images/cats/ragdoll.jpg');
+      this.loadImageWithFallback('cat_american_shorthair', 'assets/images/cats/american_shorthair.jpg');
       
       // 加载辅助卡片图片
-      this.loadImageWithFallback('item_catnip_essence', 'assets/images/items/catnip_essence.png');
-      this.loadImageWithFallback('item_scratch_post', 'assets/images/items/scratch_post.png');
-      this.loadImageWithFallback('item_cat_toy', 'assets/images/items/cat_toy.png');
-      this.loadImageWithFallback('item_cat_bell', 'assets/images/items/cat_bell.png');
-      this.loadImageWithFallback('item_laser_pointer', 'assets/images/items/laser_pointer.png');
+      this.loadImageWithFallback('item_catnip_essence', 'assets/images/items/catnip_essence.jpg');
+      this.loadImageWithFallback('item_scratch_post', 'assets/images/items/scratch_post.jpg');
+      this.loadImageWithFallback('item_cat_toy', 'assets/images/items/cat_toy.jpg');
+      this.loadImageWithFallback('item_cat_bell', 'assets/images/items/cat_bell.jpg');
+      this.loadImageWithFallback('item_box', 'assets/images/items/box.jpg');
       
       // 加载BOSS图片
       this.loadImageWithFallback('boss_1', 'assets/images/bosses/boss_1.png');

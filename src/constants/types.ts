@@ -22,7 +22,7 @@ export enum CatItemType {
   SCRATCH_POST = 'scratch_post', // 猫抓板
   CAT_TOY = 'cat_toy',           // 逗猫棒
   BELL = 'bell',                 // 猫铃铛
-  LASER = 'laser'                // 激光笔
+  BOX = 'box'                    // 纸箱
 }
 
 // 辅助效果类型

@@ -318,6 +318,7 @@ export class BattleEventHandler {
 
     this.cardOrderManager.setCatCards(result.catCards);
     this.cardOrderManager.setSupportCards(result.supportCards);
+    // 只在初始化时渲染一次
     this.cardRenderer.initRender();
   }
 
@@ -331,8 +332,15 @@ export class BattleEventHandler {
   }): void {
     console.log(`重抽完成，剩余重抽次数: ${result.redrawsRemaining}`);
 
+    // 清理旧的卡片
+    this.cardRenderer.destroy();
+    
     this.cardOrderManager.setCatCards(result.catCards);
     this.cardOrderManager.setSupportCards(result.supportCards);
+    
+    // 重新渲染新卡片
+    this.cardRenderer.initRender();
+    
     this.updateUI();
 
     if (this.cardPlaySystem.getCurrentTurn() === 0) {
@@ -352,8 +360,13 @@ export class BattleEventHandler {
       `手牌补充: ${result.catCards.length}张猫咪卡, ${result.supportCards.length}张辅助卡`
     );
 
+    // 清理旧卡片并重新渲染
+    this.cardRenderer.destroy();
+    
     this.cardOrderManager.setCatCards(result.catCards);
     this.cardOrderManager.setSupportCards(result.supportCards);
+    
+    this.cardRenderer.initRender();
   }
 
   /**
