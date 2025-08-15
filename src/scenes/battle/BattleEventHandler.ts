@@ -316,10 +316,17 @@ export class BattleEventHandler {
       `初始手牌: ${result.catCards.length}张猫咪卡, ${result.supportCards.length}张辅助卡`
     );
 
+    // 先清除可能已存在的卡片渲染
+    this.cardRenderer.destroy();
+
+    // 先设置卡片到排序管理器
     this.cardOrderManager.setCatCards(result.catCards);
     this.cardOrderManager.setSupportCards(result.supportCards);
-    // 只在初始化时渲染一次
-    this.cardRenderer.initRender();
+    
+    // 延迟一帧渲染卡片，确保位置正确
+    this.scene.time.delayedCall(10, () => {
+      this.cardRenderer.initRender();
+    });
   }
 
   /**
@@ -335,18 +342,21 @@ export class BattleEventHandler {
     // 清理旧的卡片
     this.cardRenderer.destroy();
     
+    // 先设置卡片到排序管理器
     this.cardOrderManager.setCatCards(result.catCards);
     this.cardOrderManager.setSupportCards(result.supportCards);
     
-    // 重新渲染新卡片
-    this.cardRenderer.initRender();
-    
-    this.updateUI();
+    // 延迟一帧渲染卡片，确保位置正确
+    this.scene.time.delayedCall(10, () => {
+      // 重新渲染新卡片
+      this.cardRenderer.initRender();
+      this.updateUI();
 
-    if (this.cardPlaySystem.getCurrentTurn() === 0) {
-      this.gameStateManager.exitRedrawPhase();
-      this.cardPlaySystem.startNewTurn();
-    }
+      if (this.cardPlaySystem.getCurrentTurn() === 0) {
+        this.gameStateManager.exitRedrawPhase();
+        this.cardPlaySystem.startNewTurn();
+      }
+    });
   }
 
   /**
@@ -360,13 +370,18 @@ export class BattleEventHandler {
       `手牌补充: ${result.catCards.length}张猫咪卡, ${result.supportCards.length}张辅助卡`
     );
 
-    // 清理旧卡片并重新渲染
+    // 清理旧卡片
     this.cardRenderer.destroy();
     
+    // 先设置卡片到排序管理器
     this.cardOrderManager.setCatCards(result.catCards);
     this.cardOrderManager.setSupportCards(result.supportCards);
     
-    this.cardRenderer.initRender();
+    // 延迟一帧渲染卡片，确保位置正确
+    this.scene.time.delayedCall(10, () => {
+      // 重新渲染新卡片
+      this.cardRenderer.initRender();
+    });
   }
 
   /**

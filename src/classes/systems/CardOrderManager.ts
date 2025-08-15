@@ -306,10 +306,16 @@ export class CardOrderManager {
    * 重新排列所有卡片
    */
   private rearrangeCards(): void {
+    // 与CardRenderer保持一致的布局常量
+    const CARDS_Y = 420;
+    const CARD_SPACING = 105;
+    const CAT_CARDS_START_X = 80;
+    const SUPPORT_CARDS_START_X = 520;
+    
     // 重新排列猫咪卡片
     this.catCards.forEach((card, index) => {
-      const x = 150 + index * 100;
-      const y = 500;
+      const x = CAT_CARDS_START_X + index * CARD_SPACING;
+      const y = CARDS_Y;
       
       this.scene.tweens.add({
         targets: card.sprite,
@@ -322,8 +328,8 @@ export class CardOrderManager {
     
     // 重新排列辅助卡片
     this.supportCards.forEach((card, index) => {
-      const x = 150 + index * 100;
-      const y = 400;
+      const x = SUPPORT_CARDS_START_X + index * CARD_SPACING;
+      const y = CARDS_Y;
       
       this.scene.tweens.add({
         targets: card.sprite,
@@ -393,10 +399,16 @@ export class CardOrderManager {
     this.dropZones.forEach(zone => zone.destroy());
     this.dropZones.clear();
     
+    // 与CardRenderer保持一致的布局常量
+    const CARDS_Y = 420;
+    const CARD_SPACING = 105;
+    const CAT_CARDS_START_X = 80;
+    const SUPPORT_CARDS_START_X = 520;
+    
     // 为猫咪卡片创建放置区域
     this.catCards.forEach((_, index) => {
-      const x = 150 + index * 100;
-      const y = 500;
+      const x = CAT_CARDS_START_X + index * CARD_SPACING;
+      const y = CARDS_Y;
       
       const zone = this.scene.add.zone(x, y, 90, 130);
       zone.setName(`cat_zone_${index}`);
@@ -410,8 +422,8 @@ export class CardOrderManager {
     
     // 为辅助卡片创建放置区域
     this.supportCards.forEach((_, index) => {
-      const x = 150 + index * 100;
-      const y = 400;
+      const x = SUPPORT_CARDS_START_X + index * CARD_SPACING;
+      const y = CARDS_Y;
       
       const zone = this.scene.add.zone(x, y, 90, 130);
       zone.setName(`support_zone_${index}`);
@@ -443,7 +455,11 @@ export class CardOrderManager {
    * 可视化放置区域（调试用）
    */
   private visualizeDropZone(zone: Phaser.GameObjects.Zone): void {
-    // 仅在开发模式下可视化放置区域
+    // 跳过可视化，只在拖拽模式或调试模式下显示
+    if (!(this.isDragging)) {
+      return;
+    }
+    
     const graphics = this.scene.add.graphics();
     graphics.lineStyle(2, 0xffff00, 0.5);
     
@@ -466,6 +482,11 @@ export class CardOrderManager {
         height
       );
     }
+    
+    // 延迟后移除可视化效果
+    this.scene.time.delayedCall(3000, () => {
+      graphics.destroy();
+    });
   }
   
   /**

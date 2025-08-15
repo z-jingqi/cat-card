@@ -99,13 +99,55 @@ export class CardRenderer {
     // 创建新的卡片显示
     const x = (type === 'cat' ? this.CAT_CARDS_START_X : this.SUPPORT_CARDS_START_X) + index * this.CARD_SPACING;
     
-    // 创建卡片背景
-    const cardBg = this.scene.add.rectangle(x, y, 100, 140, 0xffffff, 0.9);
-    cardBg.setStrokeStyle(2, 0x333333);
+    // 创建卡片背景 - 使用合适的背景图
+    const bgKey = type === 'cat' ? 'cat_card_background' : 'support_card_background';
+    let cardBg: Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle;
     
-    // 创建卡片图像占位符
-    const cardImage = this.scene.add.rectangle(x, y - 30, 80, 60, 
-      type === 'cat' ? 0xffcc99 : 0x99ccff, 0.8);
+    if (this.scene.textures.exists(bgKey)) {
+      cardBg = this.scene.add.sprite(x, y, bgKey);
+      (cardBg as Phaser.GameObjects.Sprite).setDisplaySize(100, 140);
+    } else {
+      // 如果图片不存在，创建矩形背景
+      cardBg = this.scene.add.rectangle(x, y, 100, 140, 0xffffff, 0.9);
+      (cardBg as Phaser.GameObjects.Rectangle).setStrokeStyle(2, 0x333333);
+    }
+    
+    // 创建卡片图像 - 使用实际图片而非占位符
+    let cardImage;
+    let imageKey = '';
+    
+    if (type === 'cat') {
+      const catCard = card as CatCard;
+      imageKey = `cat_${catCard.breed.toLowerCase()}`;
+    } else {
+      // 从支持卡片名称中提取关键词，查找合适的图片
+      const supportName = card.name.toLowerCase();
+      if (supportName.includes('猫薄荷')) {
+        imageKey = 'item_catnip_essence';
+      } else if (supportName.includes('猫爬架')) {
+        imageKey = 'item_scratch_post';
+      } else if (supportName.includes('玩具')) {
+        imageKey = 'item_cat_toy';
+      } else if (supportName.includes('铃铛')) {
+        imageKey = 'item_cat_bell';
+      } else if (supportName.includes('盒子')) {
+        imageKey = 'item_box';
+      } else {
+        // 默认支持卡图片
+        imageKey = 'item_cat_toy';
+      }
+    }
+    
+    // 尝试加载图片，如果失败使用颜色矩形
+    if (this.scene.textures.exists(imageKey)) {
+      cardImage = this.scene.add.sprite(x, y - 30, imageKey);
+      cardImage.setDisplaySize(80, 60);
+    } else {
+      // 使用彩色矩形作为备用
+      cardImage = this.scene.add.rectangle(x, y - 30, 80, 60, 
+        type === 'cat' ? 0xffcc99 : 0x99ccff, 0.8);
+      console.warn(`图片未找到: ${imageKey}，使用彩色矩形替代`);
+    }
     
     // 创建卡片名称文本
     const nameText = this.scene.add.text(x, y + 20, card.name, {
