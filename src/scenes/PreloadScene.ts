@@ -12,6 +12,7 @@ export default class PreloadScene extends Phaser.Scene {
   preload(): void {
     // TODO: 加载游戏资源
     console.log('PreloadScene: 开始加载资源');
+    this.load.image('cat_ragdoll', 'assets/images/cats/ragdoll.jpg');
   }
 
   create(): void {
