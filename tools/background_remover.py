@@ -8,7 +8,6 @@ import os
 import sys
 from pathlib import Path
 import logging
-import argparse
 
 try:
     from rembg import remove, new_session
@@ -20,14 +19,55 @@ except ImportError as e:
     # 不要直接退出，让调用者处理
     raise
 
-# 导入配置文件
-try:
-    from . import config
-except ImportError:
-    import config
+# =============================================================================
+# 配置区域 - 修改这里的参数来自定义背景移除行为
+# =============================================================================
+
+# 背景移除配置
+BG_REMOVER_CONFIG = {
+    # AI模型选择
+    'model_name': 'u2net',            # 推荐: u2net (通用), u2net_human_seg (人像)
+
+    # 输出格式
+    'keep_alpha': True,               # True=透明背景(.png), False=白色背景(.jpg)
+
+    # 文件命名
+    'background_suffix': '_nobg',     # 背景移除后缀
+
+    # 图片质量
+    'jpeg_quality': 95,               # JPEG质量 (1-100, 越高越好)
+}
+
+# 输入配置
+INPUT_CONFIG = {
+    # 输入文件或目录路径，支持多个文件
+    'input_files': [
+        # "assets/images/cats/ragdoll.png",  # 单个文件
+        # "assets/images/cats/siamese.jpg",  # 单个文件
+        "assets/images/cats",  # 目录（处理目录中所有图片）
+    ],
+    
+    # 输出目录 (None=保存在原文件同目录)
+    'output_directory': None,
+}
+
+# 日志配置
+LOG_CONFIG = {
+    'level': 'INFO',  # DEBUG, INFO, WARNING, ERROR
+    'format': '%(asctime)s - %(levelname)s - %(message)s'
+}
+
+# 支持的图片格式
+SUPPORTED_FORMATS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
+
+# 可用的AI模型说明:
+# 'u2net'           - 通用模型，适合各种场景 (推荐)
+# 'u2net_human_seg' - 人像专用，人物照片效果更好
+# 'isnet-general-use' - 最高质量，但速度较慢
+# 'silueta'         - 速度最快，质量中等
 
 # 设置日志
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
+logging.basicConfig(level=getattr(logging, LOG_CONFIG['level']), format=LOG_CONFIG['format'])
 logger = logging.getLogger(__name__)
 
 class BackgroundRemover:
@@ -108,7 +148,7 @@ class BackgroundRemover:
                     img = background
                 
                 # 保存为指定格式
-                img.save(output_path, quality=config.DEFAULT_JPEG_QUALITY)
+                img.save(output_path, quality=BG_REMOVER_CONFIG['jpeg_quality'])
             
             logger.info(f"✅ 已保存到: {output_path}")
             self.processed_count += 1
@@ -145,12 +185,9 @@ class BackgroundRemover:
         # 创建输出目录
         output_path.mkdir(parents=True, exist_ok=True)
         
-        # 支持的图片格式
-        supported_formats = config.SUPPORTED_IMAGE_FORMATS
-        
         # 遍历所有图片文件
         image_files = []
-        for ext in supported_formats:
+        for ext in SUPPORTED_FORMATS:
             image_files.extend(input_path.rglob(f'*{ext}'))
             image_files.extend(input_path.rglob(f'*{ext.upper()}'))
         
@@ -189,7 +226,7 @@ class BackgroundRemover:
                 logger.warning(f"文件不存在，跳过: {file_path}")
                 continue
             
-            if file_path_obj.suffix.lower() not in config.SUPPORTED_IMAGE_FORMATS:
+            if file_path_obj.suffix.lower() not in SUPPORTED_FORMATS:
                 logger.warning(f"不支持的文件格式，跳过: {file_path}")
                 continue
                 
@@ -228,136 +265,67 @@ class BackgroundRemover:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='AI背景移除工具',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
-使用示例:
-  # 处理单张图片 (保存为PNG格式，保持透明背景)
-  python background_remover.py -i ../assets/cat.jpg
-  # 输出: ../assets/cat_nobg.png
-  
-  # 处理多张图片 (保存在各自的原始目录)
-  python background_remover.py -i ../assets/cat1.jpg ../assets/cat2.jpg
-  # 输出: ../assets/cat1_nobg.png, ../assets/cat2_nobg.png
-  
-  # 处理多张图片到指定目录
-  python background_remover.py -i file1.jpg file2.jpg -o output_dir
-  # 输出: output_dir/file1_nobg.png, output_dir/file2_nobg.png
-  
-  # 批量处理整个目录 (必须指定输出目录)
-  python background_remover.py -i ../assets/images -o ../assets/nobg --batch
-  
-  # 使用不同的AI模型
-  python background_remover.py -i input.jpg -m u2net_human_seg
-  
-  # 输出白色背景而不是透明背景
-  python background_remover.py -i input.jpg --white-bg
-
-可用模型: {', '.join(BackgroundRemover.SUPPORTED_MODELS.keys())}
-
-💡 提示:
-- 第一次使用会自动下载模型文件 (~200MB)
-- u2net: 通用场景，推荐使用
-- u2net_human_seg: 人像效果更好
-- isnet-general-use: 质量最高，但速度较慢
-        """
-    )
-    
-    parser.add_argument('-i', '--input', nargs='+', required=True,
-                       help='输入文件或目录路径，支持多个文件')
-    parser.add_argument('-o', '--output',
-                       help='输出文件或目录路径 (默认: 与输入文件同目录)')
-    parser.add_argument('-m', '--model', default='u2net',
-                       choices=list(BackgroundRemover.SUPPORTED_MODELS.keys()),
-                       help='AI模型选择 (默认: u2net)')
-    parser.add_argument('--batch', action='store_true',
-                       help='批量处理模式')
-    parser.add_argument('--white-bg', action='store_true',
-                       help='输出白色背景而不是透明背景')
-    parser.add_argument('--list-models', action='store_true',
-                       help='列出所有可用的AI模型')
-    
-    args = parser.parse_args()
-    
-    # 列出模型信息
-    if args.list_models:
-        print("🤖 可用的AI模型:")
-        print("=" * 60)
-        for model_name, description in BackgroundRemover.SUPPORTED_MODELS.items():
-            print(f"  • {model_name:20} - {description}")
-        print("=" * 60)
-        print("\n💡 使用 -m 参数选择模型，例如: -m u2net_human_seg")
-        return
+    """主函数"""
+    print("🤖 AI背景移除工具")
+    print("="*50)
     
     # 创建背景移除器
     try:
-        remover = BackgroundRemover(model_name=args.model)
+        remover = BackgroundRemover(model_name=BG_REMOVER_CONFIG['model_name'])
     except Exception as e:
         logger.error(f"❌ 初始化失败: {str(e)}")
         sys.exit(1)
     
-    # 确定处理模式
-    input_list = args.input if isinstance(args.input, list) else [args.input]
+    # 获取输入文件
+    input_files = []
+    for input_path in INPUT_CONFIG['input_files']:
+        if isinstance(input_path, str):
+            path_obj = Path(input_path)
+            if path_obj.is_file():
+                # 单个文件
+                if path_obj.suffix.lower() in SUPPORTED_FORMATS:
+                    input_files.append(input_path)
+            elif path_obj.is_dir():
+                # 目录
+                for ext in SUPPORTED_FORMATS:
+                    input_files.extend([str(f) for f in path_obj.rglob(f'*{ext}')])
+                    input_files.extend([str(f) for f in path_obj.rglob(f'*{ext.upper()}')])
     
-    if args.batch:
-        # 批量处理模式：处理目录
-        if len(input_list) != 1:
-            logger.error("批量处理模式只能指定一个输入目录")
-            sys.exit(1)
+    input_files = sorted(list(set(input_files)))
+    
+    if not input_files:
+        logger.error("没有找到有效的图片文件")
+        print("💡 请检查 INPUT_CONFIG['input_files'] 中的路径是否正确")
+        sys.exit(1)
+    
+    logger.info(f"找到 {len(input_files)} 个图片文件")
+    
+    # 显示配置信息
+    print(f"📁 输入文件: {len(input_files)} 个")
+    print(f"📂 输出目录: {INPUT_CONFIG['output_directory'] or '与输入文件同目录'}")
+    print(f"🤖 AI模型: {BG_REMOVER_CONFIG['model_name']}")
+    print(f"🎨 透明背景: {'是' if BG_REMOVER_CONFIG['keep_alpha'] else '否'}")
+    print("="*50)
+    
+    # 处理文件
+    for input_file in input_files:
+        input_path = Path(input_file)
         
-        input_path = Path(input_list[0])
-        if not input_path.is_dir():
-            logger.error(f"批量处理模式需要输入目录，但得到的是文件: {input_path}")
-            sys.exit(1)
-        
-        if not args.output:
-            logger.error("批量处理模式必须指定输出目录 (-o)")
-            sys.exit(1)
-        
-        remover.batch_remove_background(
-            str(input_path), 
-            args.output, 
-            keep_alpha=not args.white_bg
-        )
-    elif len(input_list) == 1:
-        # 单文件处理模式
-        input_path = Path(input_list[0])
-        
-        if input_path.is_dir():
-            logger.error(f"单文件模式不能处理目录，请使用 --batch 参数: {input_path}")
-            sys.exit(1)
-        
-        # 如果没有指定输出路径，使用输入文件的同一目录
-        if not args.output:
-            output_path = input_path.parent / f"{input_path.stem}_nobg{input_path.suffix}"
+        # 确定输出路径
+        if INPUT_CONFIG['output_directory']:
+            output_path = Path(INPUT_CONFIG['output_directory'])
+            output_path.mkdir(parents=True, exist_ok=True)
+            output_file = output_path / f"{input_path.stem}_nobg{input_path.suffix}"
         else:
-            output_path = args.output
+            output_file = input_path.parent / f"{input_path.stem}_nobg{input_path.suffix}"
         
+        logger.info(f"处理文件: {input_path.name}")
+        
+        # 移除背景
         remover.remove_background(
             str(input_path), 
-            str(output_path), 
-            keep_alpha=not args.white_bg
-        )
-    else:
-        # 多文件处理模式
-        if args.output:
-            # 如果指定了输出路径，检查它必须是目录而不是文件
-            output_path = Path(args.output)
-            if output_path.suffix:  # 如果输出路径有扩展名，说明是文件而不是目录
-                logger.error("处理多个文件时，输出路径必须是目录而不是文件")
-                sys.exit(1)
-        
-        logger.info(f"多文件处理模式：处理 {len(input_list)} 个文件")
-        if args.output:
-            logger.info(f"输出到: {args.output}")
-        else:
-            logger.info("输出到: 各文件的原始目录")
-        
-        remover.multi_file_remove_background(
-            input_list,
-            args.output,  # 可能是None，表示保存在原始目录
-            keep_alpha=not args.white_bg
+            str(output_file), 
+            keep_alpha=BG_REMOVER_CONFIG['keep_alpha']
         )
     
     remover.print_summary()

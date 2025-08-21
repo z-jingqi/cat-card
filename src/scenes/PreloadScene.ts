@@ -20,7 +20,7 @@ export default class PreloadScene extends Phaser.Scene {
       console.log('PreloadScene: cat_ragdoll 纹理过滤已设置');
     });
     
-    this.load.image('cat_ragdoll', 'assets/images/cats/ragdoll.jpg');
+    this.load.image('cat_ragdoll', 'assets/images/cats/ragdoll_256x256.png');
   }
 
   create(): void {

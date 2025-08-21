@@ -7,25 +7,77 @@
 import os
 import sys
 from PIL import Image, ImageFilter, ImageEnhance
-import argparse
 from pathlib import Path
 import logging
 
-# 导入配置文件
-try:
-    from . import config
-except ImportError:
-    import config
+# =============================================================================
+# 配置区域 - 修改这里的参数来自定义缩放行为
+# =============================================================================
+
+# 缩放配置
+RESIZE_CONFIG = {
+    # 目标尺寸 - 支持多个尺寸
+    # 格式: [(宽度1, 高度1), (宽度2, 高度2), ...]
+    'target_sizes': [(256, 256), (128, 128)],  # 支持多个尺寸，为每个尺寸生成对应文件
+
+    # 缩放算法 (质量从高到低: lanczos > bicubic > bilinear)
+    'resize_method': 'lanczos',
+
+    # 图片质量
+    'jpeg_quality': 95,               # JPEG质量 (1-100, 越高越好)
+
+    # 图像增强
+    'enable_sharpen': True,           # 启用锐化 (推荐)
+    'enable_enhance': True,           # 启用对比度增强 (推荐)
+
+    # 高级设置
+    'sharpen_radius': 0.5,
+    'sharpen_percent': 50,
+    'sharpen_threshold': 3,
+    'contrast_factor': 1.05,
+    'color_factor': 1.02,
+    'progressive_scale_threshold': 0.5,
+    
+    # 文件命名
+    'add_suffix_to_filename': True,  # 是否添加尺寸后缀 (如: image_256x256.jpg)
+}
+
+# 输入配置
+INPUT_CONFIG = {
+    # 输入文件或目录路径，支持多个文件
+    'input_files': [
+        # "assets/images/cats/ragdoll.png",  # 单个文件
+        # "assets/images/cats/siamese.jpg",  # 单个文件
+        "assets/images/cats",  # 目录（处理目录中所有图片）
+    ],
+    
+    # 输出目录 (None=保存在原文件同目录)
+    'output_directory': None,
+}
+
+# 日志配置
+LOG_CONFIG = {
+    'level': 'INFO',  # DEBUG, INFO, WARNING, ERROR
+    'format': '%(asctime)s - %(levelname)s - %(message)s'
+}
+
+# 支持的图片格式
+SUPPORTED_FORMATS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
 
 # 设置日志
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
+logging.basicConfig(level=getattr(logging, LOG_CONFIG['level']), format=LOG_CONFIG['format'])
 logger = logging.getLogger(__name__)
 
 class HighQualityResizer:
     """高质量图片缩放器"""
     
-    # 从配置文件导入缩放算法映射
-    RESAMPLE_METHODS = config.RESAMPLE_METHODS
+    # 缩放算法映射
+    RESAMPLE_METHODS = {
+        'lanczos': Image.LANCZOS,
+        'bicubic': Image.BICUBIC,
+        'bilinear': Image.BILINEAR,
+        'nearest': Image.NEAREST,
+    }
     
     def __init__(self):
         self.processed_count = 0
@@ -79,13 +131,13 @@ class HighQualityResizer:
         """
         # 使用配置文件的默认值
         if method is None:
-            method = config.DEFAULT_RESIZE_METHOD
+            method = RESIZE_CONFIG['resize_method']
         if sharpen is None:
-            sharpen = config.DEFAULT_SHARPEN_ENABLED
+            sharpen = RESIZE_CONFIG['enable_sharpen']
         if enhance_quality is None:
-            enhance_quality = config.DEFAULT_ENHANCE_ENABLED
+            enhance_quality = RESIZE_CONFIG['enable_enhance']
         if quality is None:
-            quality = config.DEFAULT_JPEG_QUALITY
+            quality = RESIZE_CONFIG['jpeg_quality']
         try:
             with Image.open(input_path) as img:
                 logger.info(f"处理图片: {input_path}")
@@ -95,8 +147,8 @@ class HighQualityResizer:
                 if not (isinstance(target_size, (tuple, list)) and 
                        len(target_size) == 2 and 
                        all(isinstance(x, int) and x > 1 for x in target_size)):
-                    # 使用配置文件的解析函数
-                    target_size = config.parse_size_config(target_size, img.size)
+                    # 解析尺寸配置
+                    target_size = self._parse_size_config(target_size, img.size)
                     logger.info(f"解析后目标尺寸: {target_size}")
                 
                 # 转换图像模式，正确处理透明度
@@ -122,7 +174,7 @@ class HighQualityResizer:
                 
                 # 分步缩放以获得更好质量
                 current_img = img
-                if scale_ratio < config.PROGRESSIVE_SCALE_THRESHOLD:
+                if scale_ratio < RESIZE_CONFIG['progressive_scale_threshold']:
                     logger.info("使用分步缩放以提高质量")
                     current_ratio = 1.0
                     while current_ratio > scale_ratio * 2:
@@ -140,30 +192,34 @@ class HighQualityResizer:
                     # 锐化处理
                     if sharpen:
                         resized_img = resized_img.filter(ImageFilter.UnsharpMask(
-                            radius=config.SHARPEN_RADIUS,
-                            percent=config.SHARPEN_PERCENT,
-                            threshold=config.SHARPEN_THRESHOLD
+                            radius=RESIZE_CONFIG['sharpen_radius'],
+                            percent=RESIZE_CONFIG['sharpen_percent'],
+                            threshold=RESIZE_CONFIG['sharpen_threshold']
                         ))
                     
                     # 增强对比度和色彩
                     enhancer = ImageEnhance.Contrast(resized_img)
-                    resized_img = enhancer.enhance(config.CONTRAST_ENHANCE_FACTOR)
+                    resized_img = enhancer.enhance(RESIZE_CONFIG['contrast_factor'])
                     
                     enhancer = ImageEnhance.Color(resized_img)
-                    resized_img = enhancer.enhance(config.COLOR_ENHANCE_FACTOR)
+                    resized_img = enhancer.enhance(RESIZE_CONFIG['color_factor'])
                 
                 # 生成包含尺寸信息的输出文件名
-                final_output_path = config.generate_output_filename(input_path, output_path, final_size)
+                final_output_path = self._generate_output_filename(input_path, output_path, final_size)
                 
                 # 保存图片
                 save_kwargs = {}
                 if final_output_path.lower().endswith(('.jpg', '.jpeg')):
                     save_kwargs = {
                         'quality': quality,
-                        **config.JPEG_SAVE_PARAMS
+                        'optimize': True,
+                        'progressive': True
                     }
                 elif final_output_path.lower().endswith('.png'):
-                    save_kwargs = config.PNG_SAVE_PARAMS.copy()
+                    save_kwargs = {
+                        'optimize': True,
+                        'compress_level': 9
+                    }
                 
                 resized_img.save(final_output_path, **save_kwargs)
                 logger.info(f"已保存到: {final_output_path}")
@@ -176,6 +232,49 @@ class HighQualityResizer:
             logger.error(f"处理失败 {input_path}: {str(e)}")
             self.failed_count += 1
             return False
+    
+    def _parse_size_config(self, size_config, original_size=None):
+        """解析尺寸配置"""
+        if size_config is None:
+            return None
+
+        if isinstance(size_config, str) and size_config.endswith('%'):
+            if original_size is None:
+                raise ValueError("百分比模式需要提供原始图片尺寸")
+            percentage = float(size_config[:-1]) / 100.0
+            return (int(original_size[0] * percentage), int(original_size[1] * percentage))
+
+        elif isinstance(size_config, (int, float)) and not isinstance(size_config, bool):
+            if original_size is None:
+                raise ValueError("百分比模式需要提供原始图片尺寸")
+            return (int(original_size[0] * size_config), int(original_size[1] * size_config))
+
+        elif isinstance(size_config, (tuple, list)) and len(size_config) == 2:
+            width, height = size_config
+            if isinstance(width, (int, float)) and isinstance(height, (int, float)):
+                if width <= 1.0 and height <= 1.0 and original_size is not None:
+                    return (int(original_size[0] * width), int(original_size[1] * height))
+                else:
+                    return (int(width), int(height))
+
+        raise ValueError(f"不支持的尺寸配置格式: {size_config}")
+    
+    def _generate_output_filename(self, input_path, output_path, final_size):
+        """生成输出文件名"""
+        if not RESIZE_CONFIG['add_suffix_to_filename']:
+            return output_path
+
+        output_path_obj = Path(output_path)
+        size_tag = f"{final_size[0]}x{final_size[1]}"
+        stem = output_path_obj.stem
+
+        if size_tag not in stem:
+            new_stem = f"{stem}_{size_tag}"
+            new_output_path = output_path_obj.parent / \
+                f"{new_stem}{output_path_obj.suffix}"
+            return str(new_output_path)
+
+        return output_path
     
     def batch_resize(self, input_dir, output_dir, target_size, 
                     method=None, **kwargs):
@@ -200,7 +299,7 @@ class HighQualityResizer:
         """
         # 使用配置文件的默认值
         if method is None:
-            method = config.DEFAULT_RESIZE_METHOD
+            method = RESIZE_CONFIG['resize_method']
         input_path = Path(input_dir)
         output_path = Path(output_dir)
         
@@ -211,12 +310,9 @@ class HighQualityResizer:
         # 创建输出目录
         output_path.mkdir(parents=True, exist_ok=True)
         
-        # 支持的图片格式
-        supported_formats = config.SUPPORTED_IMAGE_FORMATS
-        
         # 遍历所有图片文件
         image_files = []
-        for ext in supported_formats:
+        for ext in SUPPORTED_FORMATS:
             image_files.extend(input_path.rglob(f'*{ext}'))
             image_files.extend(input_path.rglob(f'*{ext.upper()}'))
         
@@ -246,7 +342,7 @@ class HighQualityResizer:
         """
         # 使用配置文件的默认值
         if method is None:
-            method = config.DEFAULT_RESIZE_METHOD
+            method = RESIZE_CONFIG['resize_method']
             
         # 如果指定了输出目录，创建它
         if output_dir:
@@ -261,7 +357,7 @@ class HighQualityResizer:
                 logger.warning(f"文件不存在，跳过: {file_path}")
                 continue
             
-            if file_path_obj.suffix.lower() not in config.SUPPORTED_IMAGE_FORMATS:
+            if file_path_obj.suffix.lower() not in SUPPORTED_FORMATS:
                 logger.warning(f"不支持的文件格式，跳过: {file_path}")
                 continue
                 
@@ -295,217 +391,74 @@ class HighQualityResizer:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='高质量图片缩放工具（支持多尺寸输出）',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
-使用示例:
-  # 使用配置文件中的多尺寸设置处理图片
-  python image_resizer.py -i ../assets/bell.jpg --multi-size
-  # 输出: ../assets/bell_256x256.jpg, ../assets/bell_128x128.jpg
-  
-  # 处理单张图片指定单个尺寸
-  python image_resizer.py -i ../assets/bell.jpg -s 200 200
-  # 输出: ../assets/bell_200x200.jpg
-  
-  # 处理多张图片使用多尺寸设置
-  python image_resizer.py -i ../assets/cat.jpg ../assets/dog.jpg --multi-size
-  # 每个图片都会输出多个尺寸版本
-  
-  # 批量处理整个目录 (使用多尺寸设置)
-  python image_resizer.py -i ../assets/images -o ../assets/resized --batch --multi-size
-  
-  # 百分比缩放
-  python image_resizer.py -i file1.jpg -s 50%
-
-配置文件: tools/config.py 中的 RESIZE_SETTINGS['target_sizes']
-        """
-    )
-    
-    parser.add_argument('-i', '--input', nargs='+',
-                       required=config.DEFAULT_INPUT_PATH is None,
-                       default=config.DEFAULT_INPUT_PATH,
-                       help=f'输入文件或目录路径，支持多个文件 (默认: {config.DEFAULT_INPUT_PATH or "必须指定"})')
-    parser.add_argument('-o', '--output',
-                       required=False, 
-                       default=config.DEFAULT_OUTPUT_PATH,
-                       help=f'输出文件或目录路径 (默认: 与输入文件同目录)')
-    parser.add_argument('-s', '--size', nargs='+', 
-                       required=False,
-                       default=None,
-                       metavar=('SIZE'), 
-                       help='目标尺寸，支持多种格式:\\n'
-                            '  - 两个数字: 宽度 高度，如 400 300\\n'
-                            '  - 百分比: 50%% (等比例缩放)\\n'
-                            '  - 小数: 0.5 (等比例缩放)\\n'
-                            '  - 两个小数: 0.8 0.6 (分别缩放宽高)\\n'
-                            f'  (默认: {config.format_size_description(config.get_target_sizes()).replace("%", "%%")})')
-    parser.add_argument('--multi-size', action='store_true', 
-                       help='使用配置文件中的多尺寸设置（忽略-s参数）')
-    parser.add_argument('-m', '--method', default=config.DEFAULT_RESIZE_METHOD,
-                       choices=list(config.RESAMPLE_METHODS.keys()),
-                       help=f'缩放算法 (默认: {config.DEFAULT_RESIZE_METHOD})')
-    parser.add_argument('--batch', action='store_true', default=config.DEFAULT_BATCH_MODE,
-                       help=f'批量处理模式 (默认: {config.DEFAULT_BATCH_MODE})')
-    parser.add_argument('--no-sharpen', action='store_true',
-                       help=f'不应用锐化 (默认锐化: {config.DEFAULT_SHARPEN_ENABLED})')
-    parser.add_argument('--no-enhance', action='store_true',
-                       help=f'不增强质量 (默认增强: {config.DEFAULT_ENHANCE_ENABLED})')
-    parser.add_argument('-q', '--quality', type=int, default=config.DEFAULT_JPEG_QUALITY,
-                       help=f'JPEG质量 (1-100) (默认: {config.DEFAULT_JPEG_QUALITY})')
-    parser.add_argument('--no-size-tag', action='store_true',
-                       help=f'不在文件名中添加尺寸标签 (默认添加: {config.AUTO_ADD_SIZE_TO_FILENAME})')
-    parser.add_argument('--preset', choices=list(config.PRESETS.keys()),
-                       help='使用预设配置 (会覆盖其他相关参数)')
-    
-    args = parser.parse_args()
-    
-    # 解析尺寸参数
-    if hasattr(args, 'size') and args.size is not None and not isinstance(args.size, (tuple, int, float, str)):
-        # 只有当从命令行输入的list格式才需要解析，配置文件中的格式保持不变
-        if isinstance(args.size, list):
-            if len(args.size) == 1:
-                # 单个参数
-                size_arg = str(args.size[0])
-                if size_arg.endswith('%'):
-                    # 百分比字符串
-                    args.size = size_arg
-                else:
-                    try:
-                        # 尝试转换为数字
-                        num_val = float(size_arg)
-                        args.size = num_val
-                    except ValueError:
-                        parser.error(f"无效的尺寸格式: {size_arg}")
-            elif len(args.size) == 2:
-                # 两个参数
-                try:
-                    width = float(args.size[0])
-                    height = float(args.size[1])
-                    args.size = (width, height)
-                except ValueError:
-                    parser.error(f"无效的尺寸格式: {args.size}")
-            else:
-                parser.error(f"尺寸参数个数错误，期望1-2个参数，得到{len(args.size)}个")
-    
-    # 应用预设配置
-    if args.preset:
-        preset = config.PRESETS[args.preset]
-        logger.info(f"使用预设配置: {args.preset}")
-        
-        # 覆盖相关参数
-        if 'target_size' in preset:
-            args.size = preset['target_size']
-        if 'method' in preset:
-            args.method = preset['method']
-        if 'quality' in preset:
-            args.quality = preset['quality']
+    """主函数"""
+    print("🖼️ 高质量图片缩放工具")
+    print("="*50)
     
     resizer = HighQualityResizer()
     
-    # 处理尺寸配置
-    if args.multi_size or args.size is None:
-        # 使用配置文件中的多尺寸设置
-        target_size = config.get_target_sizes()
-        logger.info(f"使用配置文件中的多尺寸设置: {[f'{s[0]}x{s[1]}' for s in target_size]}")
-    else:
-        # 使用命令行参数指定的尺寸，转换为多尺寸格式
-        if isinstance(args.size, (tuple, list)) and len(args.size) == 2:
-            target_size = [tuple(args.size)]  # 单个尺寸转换为列表格式
+    # 获取输入文件
+    input_files = []
+    for input_path in INPUT_CONFIG['input_files']:
+        if isinstance(input_path, str):
+            path_obj = Path(input_path)
+            if path_obj.is_file():
+                # 单个文件
+                if path_obj.suffix.lower() in SUPPORTED_FORMATS:
+                    input_files.append(input_path)
+            elif path_obj.is_dir():
+                # 目录
+                for ext in SUPPORTED_FORMATS:
+                    input_files.extend([str(f) for f in path_obj.rglob(f'*{ext}')])
+                    input_files.extend([str(f) for f in path_obj.rglob(f'*{ext.upper()}')])
+    
+    input_files = sorted(list(set(input_files)))
+    
+    if not input_files:
+        logger.error("没有找到有效的图片文件")
+        print("💡 请检查 INPUT_CONFIG['input_files'] 中的路径是否正确")
+        sys.exit(1)
+    
+    logger.info(f"找到 {len(input_files)} 个图片文件")
+    
+    # 使用配置文件中的多尺寸设置
+    target_size = RESIZE_CONFIG['target_sizes']
+    
+    # 显示配置信息
+    print(f"📁 输入文件: {len(input_files)} 个")
+    print(f"📂 输出目录: {INPUT_CONFIG['output_directory'] or '与输入文件同目录'}")
+    print(f"🖼️ 目标尺寸: {[f'{s[0]}x{s[1]}' for s in target_size]}")
+    print(f"🔧 缩放算法: {RESIZE_CONFIG['resize_method']}")
+    print(f"✨ 图像增强: {'开启' if RESIZE_CONFIG['enable_enhance'] else '关闭'}")
+    print(f"🔪 锐化处理: {'开启' if RESIZE_CONFIG['enable_sharpen'] else '关闭'}")
+    print("="*50)
+    
+    # 处理文件
+    for input_file in input_files:
+        input_path = Path(input_file)
+        
+        # 确定输出路径
+        if INPUT_CONFIG['output_directory']:
+            output_path = Path(INPUT_CONFIG['output_directory'])
+            output_path.mkdir(parents=True, exist_ok=True)
+            output_file = output_path / f"{input_path.stem}{input_path.suffix}"
         else:
-            target_size = [args.size]  # 其他格式也转换为列表
-        logger.info(f"使用命令行指定的尺寸: {target_size}")
-    
-    # 处理尺寸标签设置
-    original_setting = None
-    if args.no_size_tag:
-        # 临时禁用自动添加尺寸功能
-        original_setting = config.AUTO_ADD_SIZE_TO_FILENAME
-        config.AUTO_ADD_SIZE_TO_FILENAME = False
-    
-    # 确定处理模式
-    input_list = args.input if isinstance(args.input, list) else [args.input]
-    
-    # 单文件和多文件模式默认使用输入文件的同一目录
-    
-    if args.batch:
-        # 批量处理模式：处理目录
-        if len(input_list) != 1:
-            logger.error("批量处理模式只能指定一个输入目录")
-            sys.exit(1)
+            output_file = input_path.parent / f"{input_path.stem}{input_path.suffix}"
         
-        input_path = Path(input_list[0])
-        if not input_path.is_dir():
-            logger.error(f"批量处理模式需要输入目录，但得到的是文件: {input_path}")
-            sys.exit(1)
-        
-        if not args.output:
-            logger.error("批量处理模式必须指定输出目录 (-o)")
-            sys.exit(1)
-        
-        resizer.batch_resize(
-            str(input_path), 
-            args.output, 
-            target_size, 
-            method=args.method,
-            sharpen=not args.no_sharpen,
-            enhance_quality=not args.no_enhance,
-            quality=args.quality
-        )
-    elif len(input_list) == 1:
-        # 单文件处理模式
-        input_path = Path(input_list[0])
-        
-        if input_path.is_dir():
-            logger.error(f"单文件模式不能处理目录，请使用 --batch 参数: {input_path}")
-            sys.exit(1)
-        
-        # 如果没有指定输出路径，使用输入文件的同一目录
-        if not args.output:
-            output_path = input_path.parent / f"{input_path.stem}{input_path.suffix}"
-        else:
-            output_path = args.output
+        logger.info(f"处理文件: {input_path.name}")
         
         # 多尺寸处理
         resizer.resize_image_to_multiple_sizes(
             str(input_path), 
-            str(output_path), 
+            str(output_file), 
             target_size, 
-            method=args.method,
-            sharpen=not args.no_sharpen,
-            enhance_quality=not args.no_enhance,
-            quality=args.quality
-        )
-    else:
-        # 多文件处理模式
-        if args.output:
-            # 如果指定了输出路径，检查它必须是目录而不是文件
-            output_path = Path(args.output)
-            if output_path.suffix:  # 如果输出路径有扩展名，说明是文件而不是目录
-                logger.error("处理多个文件时，输出路径必须是目录而不是文件")
-                sys.exit(1)
-        
-        logger.info(f"多文件处理模式：处理 {len(input_list)} 个文件")
-        if args.output:
-            logger.info(f"输出到: {args.output}")
-        else:
-            logger.info("输出到: 各文件的原始目录")
-        
-        resizer.multi_file_resize(
-            input_list,
-            args.output,  # 可能是None，表示保存在原始目录
-            target_size, 
-            method=args.method,
-            sharpen=not args.no_sharpen,
-            enhance_quality=not args.no_enhance,
-            quality=args.quality
+            method=RESIZE_CONFIG['resize_method'],
+            sharpen=RESIZE_CONFIG['enable_sharpen'],
+            enhance_quality=RESIZE_CONFIG['enable_enhance'],
+            quality=RESIZE_CONFIG['jpeg_quality']
         )
     
     resizer.print_summary()
-    
-    # 恢复原始设置
-    if args.no_size_tag and original_setting is not None:
-        config.AUTO_ADD_SIZE_TO_FILENAME = original_setting
 
 
 if __name__ == '__main__':

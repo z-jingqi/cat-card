@@ -120,9 +120,10 @@ export default class BattleScene extends Phaser.Scene {
   private renderTestCard(): void {
     const { width } = this.cameras.main;
     const scaleFactor = width / 1920;
-    // 增大基础卡牌宽度
-    const cardWidth = 220 * scaleFactor;
-    const cardHeight = cardWidth * 1.4;
+    
+    // 扑克牌风格的卡片比例设计 - 图片像人头一样占主要区域
+    const cardWidth = 280;  // 扑克牌风格宽度，适合256px图片
+    const cardHeight = 392; // 扑克牌比例 (width ÷ 0.714)
 
     const handBounds = this.areaManager.getAreaBounds('hand');
     if (!handBounds) return;
@@ -136,10 +137,11 @@ export default class BattleScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x333333);
     cardContainer.add(cardBackground);
 
-    const attackRadius = 20 * scaleFactor;
-    const attackBg = this.add.circle(-cardWidth / 2 + 25 * scaleFactor, -cardHeight / 2 + 25 * scaleFactor, attackRadius, 0xff4444);
+    // 扑克牌风格的攻击力角标 - 左上角
+    const attackRadius = 22;
+    const attackBg = this.add.circle(-cardWidth / 2 + 25, -cardHeight / 2 + 25, attackRadius, 0xff4444);
     const attackText = this.add.text(attackBg.x, attackBg.y, '5', {
-      fontSize: `${20 * scaleFactor}px`,
+      fontSize: `${18 * scaleFactor}px`,
       color: '#ffffff',
       fontStyle: 'bold',
       resolution: 2
@@ -147,61 +149,36 @@ export default class BattleScene extends Phaser.Scene {
     cardContainer.add([attackBg, attackText]);
 
     if (this.textures.exists('cat_ragdoll')) {
-      // 尝试不同方法：直接设置显示尺寸而不通过fitImageToArea
-      const catImage = this.add.image(0, -35 * scaleFactor, 'cat_ragdoll');
-      
-      // 直接设置显示尺寸，避免复杂的缩放计算
-      const displayWidth = 280 * scaleFactor;
-      const displayHeight = 230 * scaleFactor;
-      // catImage.setDisplaySize(displayWidth, displayHeight);
+      // 图片放在中央偏上位置，像扑克牌的人头
+      const catImage = this.add.image(0, -20, 'cat_ragdoll');
       
       // 确保纹理使用正确过滤
-      // catImage.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      catImage.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
       
       cardContainer.add(catImage);
       
-      console.log('Cat image - Display size:', displayWidth, 'x', displayHeight);
+      console.log('扑克牌风格卡片 - 图片256x256，卡片尺寸:', cardWidth, 'x', cardHeight, 'px');
     }
 
-    const abilityText = this.add.text(0, cardHeight / 2 - 35 * scaleFactor, '温和攻击\n造成5点伤害', {
-      fontSize: `${14 * scaleFactor}px`,
-      color: '#333333',
-      align: 'center',
-      wordWrap: { width: cardWidth - 20 * scaleFactor },
-      resolution: 2
-    }).setOrigin(0.5);
-    cardContainer.add(abilityText);
-    
-    const nameText = this.add.text(0, 80 * scaleFactor, '布偶猫', {
+    // 名字放在图片下方
+    const nameText = this.add.text(0, 140, '布偶猫', {
       fontSize: `${18 * scaleFactor}px`,
       color: '#333333',
       fontStyle: 'bold',
       resolution: 2
     }).setOrigin(0.5);
     cardContainer.add(nameText);
+
+    // 技能描述放在底部
+    const abilityText = this.add.text(0, 170, '温和攻击\n造成5点伤害', {
+      fontSize: `${12 * scaleFactor}px`,
+      color: '#333333',
+      align: 'center',
+      wordWrap: { width: cardWidth - 20 },
+      resolution: 2
+    }).setOrigin(0.5);
+    cardContainer.add(abilityText);
   }
 
-  private fitImageToArea(image: Phaser.GameObjects.Image, maxWidth: number, maxHeight: number): void {
-    // 获取纹理的真实尺寸
-    const texture = image.texture;
-    const frame = texture.get(image.frame.name);
-    const originalWidth = frame.width;
-    const originalHeight = frame.height;
-    
-    // 计算保持宽高比的目标尺寸
-    const scaleX = maxWidth / originalWidth;
-    const scaleY = maxHeight / originalHeight;
-    const scale = Math.min(scaleX, scaleY);
-    
-    const targetWidth = originalWidth * scale;
-    const targetHeight = originalHeight * scale;
-    
-    // 使用 setDisplaySize 代替 setScale，通常有更好的质量
-    image.setDisplaySize(targetWidth, targetHeight);
-    
-    // pixelArt 模式下使用 LINEAR 过滤获得最佳效果
-    texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
-    
-    console.log('Image fitted - Display size:', targetWidth, 'x', targetHeight, 'Original:', originalWidth, 'x', originalHeight);
-  }
+
 }
