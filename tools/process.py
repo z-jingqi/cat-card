@@ -86,12 +86,14 @@ def load_config():
         from config import (
             COMMON_SETTINGS,
             RESIZE_SETTINGS, 
-            BACKGROUND_REMOVAL_SETTINGS
+            BACKGROUND_REMOVAL_SETTINGS,
+            get_target_sizes
         )
         return {
             'common': COMMON_SETTINGS,
             'resize': RESIZE_SETTINGS,
-            'bg_removal': BACKGROUND_REMOVAL_SETTINGS
+            'bg_removal': BACKGROUND_REMOVAL_SETTINGS,
+            'get_target_sizes': get_target_sizes
         }
     except ImportError as e:
         print(f"❌ 加载配置失败: {e}")
@@ -107,6 +109,29 @@ def get_script_list(scripts_config):
         return [scripts_config]
     else:
         return ['bg_only', 'resize_only']  # 默认运行所有
+
+def get_input_files(input_config):
+    """获取输入文件列表"""
+    from config import SUPPORTED_IMAGE_FORMATS
+    
+    if isinstance(input_config, str):
+        # 如果是目录路径
+        input_path = Path(input_config)
+        if input_path.is_dir():
+            # 从目录中获取所有支持的图片文件
+            image_files = []
+            for ext in SUPPORTED_IMAGE_FORMATS:
+                image_files.extend(input_path.rglob(f'*{ext}'))
+                image_files.extend(input_path.rglob(f'*{ext.upper()}'))
+            return [str(f) for f in image_files]
+        else:
+            # 单个文件路径
+            return [input_config]
+    elif isinstance(input_config, list):
+        # 文件列表
+        return input_config
+    else:
+        return []
 
 def run_with_venv():
     """使用虚拟环境重新运行脚本"""
@@ -144,7 +169,7 @@ def process_images(scripts_to_run, config):
         return False
     
     # 获取输入文件
-    input_files = config['common']['input_files']
+    input_files = get_input_files(config['common']['input_files'])
     output_dir = config['common']['output_directory']
     
     print(f"📁 找到 {len(input_files)} 个输入文件")
@@ -192,13 +217,22 @@ def process_images(scripts_to_run, config):
                 
                 if success:
                     print(f"✅ 背景移除完成: {bg_output.name}")
+                    
+                    # 如果配置了删除原文件，则删除
+                    if config['bg_removal'].get('delete_original', False):
+                        try:
+                            Path(current_file).unlink()
+                            print(f"🗑️ 已删除原文件: {Path(current_file).name}")
+                        except Exception as e:
+                            print(f"⚠️ 删除原文件失败: {e}")
+                    
                     current_file = str(bg_output)  # 更新当前文件路径用于下一步
                 else:
                     print("❌ 背景移除失败")
                     failed_count += 1
                     continue
             
-            # 第二步：缩放
+            # 第二步：缩放（多尺寸）
             if 'resize_only' in scripts_to_run:
                 print("🖼️ 缩放图片...")
                 
@@ -208,27 +242,27 @@ def process_images(scripts_to_run, config):
                 if scripts_to_run == ['resize_only']:
                     current_file = str(input_path)
                 
-                # 构建缩放后的文件名
-                if config['common']['add_suffix_to_filename']:
-                    size = config['resize']['target_size']
-                    current_path = Path(current_file)
-                    final_output = output_path / f"{current_path.stem}_{size[0]}x{size[1]}{current_path.suffix}"
-                else:
-                    current_path = Path(current_file)
-                    final_output = output_path / f"{current_path.stem}{current_path.suffix}"
+                # 获取所有目标尺寸
+                target_sizes = config['get_target_sizes']()
+                print(f"目标尺寸: {[f'{s[0]}x{s[1]}' for s in target_sizes]}")
                 
-                success = resizer.resize_image(
+                # 构建基础输出路径（不包含尺寸）
+                current_path = Path(current_file)
+                base_output = output_path / f"{current_path.stem}{current_path.suffix}"
+                
+                # 使用多尺寸缩放方法
+                success_count = resizer.resize_image_to_multiple_sizes(
                     current_file,
-                    str(final_output),
-                    config['resize']['target_size'],
+                    str(base_output),
+                    target_sizes,
                     method=config['resize']['resize_method'],
                     sharpen=config['resize']['enable_sharpen'],
                     enhance_quality=config['resize']['enable_enhance'],
                     quality=config['resize']['jpeg_quality']
                 )
                 
-                if success:
-                    print(f"✅ 缩放完成: {final_output.name}")
+                if success_count > 0:
+                    print(f"✅ 缩放完成: {success_count}/{len(target_sizes)} 个尺寸")
                 else:
                     print("❌ 缩放失败")
                     failed_count += 1
@@ -293,10 +327,16 @@ def main():
     print("="*60)
     
     # 显示配置信息
-    print(f"📁 输入文件: {len(config['common']['input_files'])} 个")
+    input_files = get_input_files(config['common']['input_files'])
+    print(f"📁 输入文件: {len(input_files)} 个")
     if 'resize_only' in scripts_to_run:
-        size = config['resize']['target_size']
-        print(f"🖼️ 目标尺寸: {size[0]}x{size[1]}")
+        target_sizes = config['get_target_sizes']()
+        if len(target_sizes) == 1:
+            size = target_sizes[0]
+            print(f"🖼️ 目标尺寸: {size[0]}x{size[1]}")
+        else:
+            sizes_str = ", ".join([f"{s[0]}x{s[1]}" for s in target_sizes])
+            print(f"🖼️ 目标尺寸: {sizes_str} ({len(target_sizes)}个)")
     if 'bg_only' in scripts_to_run:
         model = config['bg_removal']['model_name']
         alpha = "透明背景" if config['bg_removal']['keep_alpha'] else "白色背景"

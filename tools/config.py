@@ -11,6 +11,7 @@ Cat Card Game - 图片处理配置文件
 """
 
 from PIL import Image
+from pathlib import Path
 
 # =============================================================================
 # 🔧 通用配置
@@ -22,12 +23,13 @@ COMMON_SETTINGS = {
     # 可选的脚本: ['bg_only', 'resize_only']
     
     # 输入文件列表 - 添加你要处理的图片路径
-    'input_files': [
-        "assets/images/cats/ragdoll.jpg",
-        "assets/images/cats/siamese.jpg", 
-        "assets/images/cats/american_shorthair.jpg",
-        "assets/images/cats/bengal.jpg"
-    ],
+    'input_files': "assets/images/items",
+    # 'input_files': [
+    #     "assets/images/cats/ragdoll.jpg",
+    #     "assets/images/cats/siamese.jpg", 
+    #     "assets/images/cats/american_shorthair.jpg",
+    #     "assets/images/cats/bengal.jpg"
+    # ],
     
     # 输出目录 - None表示保存在输入文件的同一目录
     'output_directory': None,
@@ -48,8 +50,10 @@ COMMON_SETTINGS = {
 # =============================================================================
 
 RESIZE_SETTINGS = {
-    # 目标尺寸 - 游戏卡片标准尺寸
-    'target_size': (256, 256),        # 宽x高 像素
+    # 目标尺寸 - 支持多个尺寸
+    # 格式: [(宽度1, 高度1), (宽度2, 高度2), ...]
+    # 示例: [(256, 256), (128, 128), (512, 512)]
+    'target_sizes': [(256, 256), (128, 128)],  # 支持多个尺寸，为每个尺寸生成对应文件
     
     # 缩放算法 (质量从高到低: lanczos > bicubic > bilinear)
     'resize_method': 'lanczos',
@@ -82,7 +86,10 @@ BACKGROUND_REMOVAL_SETTINGS = {
     'keep_alpha': True,               # True=透明背景(.png), False=白色背景(.jpg)
     
     # 文件命名
-    'background_suffix': '_nobg',     # 背景移除后缀
+    'background_suffix': '',     # 背景移除后缀
+    
+    # 文件管理
+    'delete_original': True,         # 移除背景成功后是否删除原文件 (谨慎使用!)
 }
 
 # 可用的AI模型说明:
@@ -90,6 +97,10 @@ BACKGROUND_REMOVAL_SETTINGS = {
 # 'u2net_human_seg' - 人像专用，人物照片效果更好
 # 'isnet-general-use' - 最高质量，但速度较慢
 # 'silueta'         - 速度最快，质量中等
+
+# 注意事项:
+# • delete_original=True 时，原文件将被永久删除，请谨慎使用
+# • 建议先设置为False测试效果，确认无误后再改为True
 
 # =============================================================================
 # ⚙️ 高级设置 (通常不需要修改)
@@ -119,7 +130,7 @@ ADVANCED_SETTINGS = {
 # 映射到工具期望的变量名
 DEFAULT_INPUT_PATH = COMMON_SETTINGS['input_files']
 DEFAULT_OUTPUT_PATH = COMMON_SETTINGS['output_directory']
-DEFAULT_TARGET_SIZE = RESIZE_SETTINGS['target_size']
+DEFAULT_TARGET_SIZES = RESIZE_SETTINGS['target_sizes']  # 多尺寸支持
 DEFAULT_RESIZE_METHOD = RESIZE_SETTINGS['resize_method']
 DEFAULT_JPEG_QUALITY = RESIZE_SETTINGS['jpeg_quality']
 AUTO_ADD_SIZE_TO_FILENAME = COMMON_SETTINGS['add_suffix_to_filename']
@@ -130,6 +141,8 @@ DEFAULT_BG_KEEP_ALPHA = BACKGROUND_REMOVAL_SETTINGS['keep_alpha']
 DEFAULT_BG_ADD_SUFFIX = True
 
 # 高级设置映射
+DEFAULT_BATCH_MODE = False  # 默认不使用批量模式
+PRESETS = {}  # 预设配置（暂无）
 RESAMPLE_METHODS = ADVANCED_SETTINGS['resample_methods']
 PROGRESSIVE_SCALE_THRESHOLD = RESIZE_SETTINGS['progressive_scale_threshold']
 SHARPEN_RADIUS = RESIZE_SETTINGS['sharpen_radius']
@@ -191,6 +204,32 @@ def generate_output_filename(input_path, output_path, final_size, add_size=None)
     
     return output_path
 
+def get_target_sizes():
+    """获取所有目标尺寸"""
+    sizes = RESIZE_SETTINGS.get('target_sizes', [(256, 256)])
+    if not sizes:
+        return [(256, 256)]  # 默认尺寸
+    
+    # 确保返回的是尺寸列表
+    if isinstance(sizes, list):
+        return sizes
+    else:
+        # 如果不是列表，转换为列表
+        return [sizes]
+
+def format_size_description(size_config):
+    """格式化尺寸配置的描述"""
+    if size_config is None:
+        return "必须指定"
+    elif isinstance(size_config, list):
+        if len(size_config) == 1:
+            return f"{size_config[0][0]}x{size_config[0][1]}"
+        else:
+            sizes_str = ", ".join([f"{s[0]}x{s[1]}" for s in size_config])
+            return f"多个尺寸: [{sizes_str}]"
+    else:
+        return str(size_config)
+
 def print_current_config():
     """打印当前配置"""
     print("📋 当前配置信息")
@@ -210,17 +249,40 @@ def print_current_config():
         print(f"🎯 运行脚本: {scripts}")
         script_list = [scripts] if isinstance(scripts, str) else []
     
-    print(f"📁 输入文件: {len(COMMON_SETTINGS['input_files'])} 个")
-    for i, path in enumerate(COMMON_SETTINGS['input_files'], 1):
-        print(f"  {i}. {path}")
+    # 显示输入配置信息
+    input_config = COMMON_SETTINGS['input_files']
+    if isinstance(input_config, str):
+        print(f"📁 输入源: {input_config} (目录)")
+        # 尝试统计目录中的文件数量
+        input_path = Path(input_config)
+        if input_path.exists() and input_path.is_dir():
+            image_files = []
+            for ext in SUPPORTED_IMAGE_FORMATS:
+                image_files.extend(input_path.rglob(f'*{ext}'))
+                image_files.extend(input_path.rglob(f'*{ext.upper()}'))
+            print(f"📁 找到图片: {len(image_files)} 个")
+        else:
+            print("📁 目录状态: 路径不存在或不是目录")
+    elif isinstance(input_config, list):
+        print(f"📁 输入文件: {len(input_config)} 个")
+        for i, path in enumerate(input_config, 1):
+            print(f"  {i}. {path}")
+    else:
+        print(f"📁 输入配置: {input_config} (未知格式)")
     print(f"📂 输出目录: {COMMON_SETTINGS['output_directory'] or '与输入文件同目录'}")
     
     if 'resize_only' in script_list:
-        print(f"🖼️ 目标尺寸: {RESIZE_SETTINGS['target_size'][0]}x{RESIZE_SETTINGS['target_size'][1]}")
+        target_sizes = get_target_sizes()
+        if len(target_sizes) == 1:
+            print(f"🖼️ 目标尺寸: {target_sizes[0][0]}x{target_sizes[0][1]}")
+        else:
+            sizes_str = ", ".join([f"{s[0]}x{s[1]}" for s in target_sizes])
+            print(f"🖼️ 目标尺寸: {sizes_str} ({len(target_sizes)}个)")
     
     if 'bg_only' in script_list:
         print(f"🤖 AI模型: {BACKGROUND_REMOVAL_SETTINGS['model_name']}")
         print(f"🎨 透明背景: {'是' if BACKGROUND_REMOVAL_SETTINGS['keep_alpha'] else '否'}")
+        print(f"🗑️ 删除原文件: {'是' if BACKGROUND_REMOVAL_SETTINGS['delete_original'] else '否'}")
     
     print("="*50)
 

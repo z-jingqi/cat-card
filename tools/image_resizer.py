@@ -31,6 +31,37 @@ class HighQualityResizer:
         self.processed_count = 0
         self.failed_count = 0
     
+    def resize_image_to_multiple_sizes(self, input_path, output_path, target_sizes, 
+                                      method=None, sharpen=None, enhance_quality=None, quality=None):
+        """
+        将单张图片缩放到多个尺寸
+        
+        Args:
+            input_path: 输入图片路径
+            output_path: 输出图片路径（基础路径，会为每个尺寸生成不同文件名）
+            target_sizes: 目标尺寸列表 [(width1, height1), (width2, height2), ...]
+            method: 缩放算法 (None使用配置默认值)
+            sharpen: 是否应用锐化 (None使用配置默认值)
+            enhance_quality: 是否增强质量 (None使用配置默认值)
+            quality: JPEG质量 (None使用配置默认值)
+        
+        Returns:
+            成功处理的尺寸数量
+        """
+        if not isinstance(target_sizes, (list, tuple)):
+            target_sizes = [target_sizes]
+        
+        success_count = 0
+        logger.info(f"处理图片到 {len(target_sizes)} 个尺寸: {input_path}")
+        
+        for target_size in target_sizes:
+            logger.info(f"处理尺寸: {target_size[0]}x{target_size[1]}")
+            if self.resize_image(input_path, output_path, target_size, method, 
+                               sharpen, enhance_quality, quality):
+                success_count += 1
+        
+        return success_count
+
     def resize_image(self, input_path, output_path, target_size, 
                     method=None, sharpen=None, enhance_quality=None, quality=None, 
                     original_size=None):
@@ -199,8 +230,8 @@ class HighQualityResizer:
             # 创建子目录
             output_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # 缩放图片
-            self.resize_image(str(img_file), str(output_file), target_size, method, **kwargs)
+            # 缩放图片（多尺寸模式）
+            self.resize_image_to_multiple_sizes(str(img_file), str(output_file), target_size, method, **kwargs)
     
     def _batch_process_files(self, input_files, output_dir, target_size,
                            method=None, **kwargs):
@@ -253,8 +284,8 @@ class HighQualityResizer:
             
             logger.info(f"处理文件: {img_file}")
             
-            # 缩放图片
-            self.resize_image(str(img_file), str(output_file), target_size, method, **kwargs)
+            # 缩放图片（多尺寸模式）
+            self.resize_image_to_multiple_sizes(str(img_file), str(output_file), target_size, method, **kwargs)
     
     def print_summary(self):
         """打印处理总结"""
@@ -265,29 +296,29 @@ class HighQualityResizer:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='高质量图片缩放工具',
+        description='高质量图片缩放工具（支持多尺寸输出）',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 使用示例:
-  # 处理单张图片 (保存在同一目录，自动添加尺寸标签)
-  python image_resizer.py -i ../assets/bell.jpg
+  # 使用配置文件中的多尺寸设置处理图片
+  python image_resizer.py -i ../assets/bell.jpg --multi-size
+  # 输出: ../assets/bell_256x256.jpg, ../assets/bell_128x128.jpg
+  
+  # 处理单张图片指定单个尺寸
+  python image_resizer.py -i ../assets/bell.jpg -s 200 200
   # 输出: ../assets/bell_200x200.jpg
   
-  # 处理多张图片 (保存在各自的原始目录)
-  python image_resizer.py -i ../assets/cat.jpg ../assets/dog.jpg -s 200 200
-  # 输出: ../assets/cat_200x200.jpg, ../assets/dog_200x200.jpg
+  # 处理多张图片使用多尺寸设置
+  python image_resizer.py -i ../assets/cat.jpg ../assets/dog.jpg --multi-size
+  # 每个图片都会输出多个尺寸版本
   
-  # 处理多张图片到指定目录
-  python image_resizer.py -i file1.jpg file2.jpg -o output_dir -s 200 200
-  # 输出: output_dir/file1_200x200.jpg, output_dir/file2_200x200.jpg
+  # 批量处理整个目录 (使用多尺寸设置)
+  python image_resizer.py -i ../assets/images -o ../assets/resized --batch --multi-size
   
-  # 批量处理整个目录 (必须指定输出目录)
-  python image_resizer.py -i ../assets/images -o ../assets/resized --batch
-  
-  # 百分比缩放 (保存在原目录)
-  python image_resizer.py -i file1.jpg file2.jpg -s 50%
+  # 百分比缩放
+  python image_resizer.py -i file1.jpg -s 50%
 
-可用预设: {', '.join(config.PRESETS.keys())}
+配置文件: tools/config.py 中的 RESIZE_SETTINGS['target_sizes']
         """
     )
     
@@ -300,15 +331,17 @@ def main():
                        default=config.DEFAULT_OUTPUT_PATH,
                        help=f'输出文件或目录路径 (默认: 与输入文件同目录)')
     parser.add_argument('-s', '--size', nargs='+', 
-                       required=config.DEFAULT_TARGET_SIZE is None,
-                       default=config.DEFAULT_TARGET_SIZE,
+                       required=False,
+                       default=None,
                        metavar=('SIZE'), 
-                       help=f'目标尺寸，支持多种格式:\n'
-                            f'  - 两个数字: 宽度 高度，如 400 300\n'
-                            f'  - 百分比: 50% (等比例缩放)\n' 
-                            f'  - 小数: 0.5 (等比例缩放)\n'
-                            f'  - 两个小数: 0.8 0.6 (分别缩放宽高)\n'
-                            f'  (默认: {config.format_size_description(config.DEFAULT_TARGET_SIZE)})')
+                       help='目标尺寸，支持多种格式:\\n'
+                            '  - 两个数字: 宽度 高度，如 400 300\\n'
+                            '  - 百分比: 50%% (等比例缩放)\\n'
+                            '  - 小数: 0.5 (等比例缩放)\\n'
+                            '  - 两个小数: 0.8 0.6 (分别缩放宽高)\\n'
+                            f'  (默认: {config.format_size_description(config.get_target_sizes()).replace("%", "%%")})')
+    parser.add_argument('--multi-size', action='store_true', 
+                       help='使用配置文件中的多尺寸设置（忽略-s参数）')
     parser.add_argument('-m', '--method', default=config.DEFAULT_RESIZE_METHOD,
                        choices=list(config.RESAMPLE_METHODS.keys()),
                        help=f'缩放算法 (默认: {config.DEFAULT_RESIZE_METHOD})')
@@ -369,7 +402,19 @@ def main():
             args.quality = preset['quality']
     
     resizer = HighQualityResizer()
-    target_size = args.size  # 现在支持多种格式，不强制转换为tuple
+    
+    # 处理尺寸配置
+    if args.multi_size or args.size is None:
+        # 使用配置文件中的多尺寸设置
+        target_size = config.get_target_sizes()
+        logger.info(f"使用配置文件中的多尺寸设置: {[f'{s[0]}x{s[1]}' for s in target_size]}")
+    else:
+        # 使用命令行参数指定的尺寸，转换为多尺寸格式
+        if isinstance(args.size, (tuple, list)) and len(args.size) == 2:
+            target_size = [tuple(args.size)]  # 单个尺寸转换为列表格式
+        else:
+            target_size = [args.size]  # 其他格式也转换为列表
+        logger.info(f"使用命令行指定的尺寸: {target_size}")
     
     # 处理尺寸标签设置
     original_setting = None
@@ -421,7 +466,8 @@ def main():
         else:
             output_path = args.output
         
-        resizer.resize_image(
+        # 多尺寸处理
+        resizer.resize_image_to_multiple_sizes(
             str(input_path), 
             str(output_path), 
             target_size, 
