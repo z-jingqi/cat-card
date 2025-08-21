@@ -147,10 +147,20 @@ export default class BattleScene extends Phaser.Scene {
     cardContainer.add([attackBg, attackText]);
 
     if (this.textures.exists('cat_ragdoll')) {
+      // 尝试不同方法：直接设置显示尺寸而不通过fitImageToArea
       const catImage = this.add.image(0, -35 * scaleFactor, 'cat_ragdoll');
-      // 再次增大图片显示区域，达到视觉极限
-      this.fitImageToArea(catImage, 215 * scaleFactor, 190 * scaleFactor);
+      
+      // 直接设置显示尺寸，避免复杂的缩放计算
+      const displayWidth = 280 * scaleFactor;
+      const displayHeight = 230 * scaleFactor;
+      // catImage.setDisplaySize(displayWidth, displayHeight);
+      
+      // 确保纹理使用正确过滤
+      // catImage.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      
       cardContainer.add(catImage);
+      
+      console.log('Cat image - Display size:', displayWidth, 'x', displayHeight);
     }
 
     const abilityText = this.add.text(0, cardHeight / 2 - 35 * scaleFactor, '温和攻击\n造成5点伤害', {
@@ -172,13 +182,26 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   private fitImageToArea(image: Phaser.GameObjects.Image, maxWidth: number, maxHeight: number): void {
-    const originalWidth = image.texture.source[0].width;
-    const originalHeight = image.texture.source[0].height;
+    // 获取纹理的真实尺寸
+    const texture = image.texture;
+    const frame = texture.get(image.frame.name);
+    const originalWidth = frame.width;
+    const originalHeight = frame.height;
     
+    // 计算保持宽高比的目标尺寸
     const scaleX = maxWidth / originalWidth;
     const scaleY = maxHeight / originalHeight;
-    
     const scale = Math.min(scaleX, scaleY);
-    image.setScale(scale);
+    
+    const targetWidth = originalWidth * scale;
+    const targetHeight = originalHeight * scale;
+    
+    // 使用 setDisplaySize 代替 setScale，通常有更好的质量
+    image.setDisplaySize(targetWidth, targetHeight);
+    
+    // pixelArt 模式下使用 LINEAR 过滤获得最佳效果
+    texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    
+    console.log('Image fitted - Display size:', targetWidth, 'x', targetHeight, 'Original:', originalWidth, 'x', originalHeight);
   }
 }

@@ -12,6 +12,14 @@ export default class PreloadScene extends Phaser.Scene {
   preload(): void {
     // TODO: 加载游戏资源
     console.log('PreloadScene: 开始加载资源');
+    
+    // 设置加载完成后的纹理过滤
+    this.load.on('filecomplete-image-cat_ragdoll', () => {
+      const texture = this.textures.get('cat_ragdoll');
+      texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      console.log('PreloadScene: cat_ragdoll 纹理过滤已设置');
+    });
+    
     this.load.image('cat_ragdoll', 'assets/images/cats/ragdoll.jpg');
   }
 
