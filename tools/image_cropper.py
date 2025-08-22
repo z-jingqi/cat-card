@@ -24,8 +24,8 @@ CROP_CONFIG = {
     'crop_box': (100, 100, 900, 900),  # (left, top, right, bottom)
     
     # 百分比裁剪配置 (当crop_mode='percentage'时使用)
-    'horizontal_percent': 0.2,  # 水平裁剪20% (0.0-1.0)
-    'vertical_percent': 0.2,    # 垂直裁剪20% (0.0-1.0)
+    'horizontal_percent': 0.1,  # 水平裁剪20% (0.0-1.0)
+    'vertical_percent': 0.1,    # 垂直裁剪20% (0.0-1.0)
     
     # 图片质量
     'quality': 95,              # JPEG质量 (1-100, 越高越好)

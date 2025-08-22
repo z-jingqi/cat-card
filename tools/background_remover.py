@@ -32,7 +32,7 @@ BG_REMOVER_CONFIG = {
     'keep_alpha': True,               # True=透明背景(.png), False=白色背景(.jpg)
 
     # 文件命名
-    'background_suffix': '_nobg',     # 背景移除后缀
+    'background_suffix': '',     # 背景移除后缀
 
     # 图片质量
     'jpeg_quality': 95,               # JPEG质量 (1-100, 越高越好)
@@ -42,7 +42,7 @@ BG_REMOVER_CONFIG = {
 INPUT_CONFIG = {
     # 输入文件或目录路径，支持多个文件
     'input_files': [
-        # "assets/images/cats/ragdoll.png",  # 单个文件
+        # "assets/images/cats/ragdoll.jpg",  # 单个文件
         # "assets/images/cats/siamese.jpg",  # 单个文件
         "assets/images/cats",  # 目录（处理目录中所有图片）
     ],
@@ -196,7 +196,7 @@ class BackgroundRemover:
         for img_file in image_files:
             # 构建输出文件名
             relative_path = img_file.relative_to(input_path)
-            output_file = output_path / relative_path.parent / f"{relative_path.stem}_nobg{relative_path.suffix}"
+            output_file = output_path / relative_path.parent / f"{relative_path.stem}{BG_REMOVER_CONFIG['background_suffix']}{relative_path.suffix}"
             
             # 创建子目录
             output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -242,10 +242,10 @@ class BackgroundRemover:
             # 根据是否指定输出目录来确定输出路径
             if output_dir:
                 # 有输出目录：保存到指定目录
-                output_file = output_path / f"{img_file.stem}_nobg{img_file.suffix}"
+                output_file = output_path / f"{img_file.stem}{BG_REMOVER_CONFIG['background_suffix']}{img_file.suffix}"
             else:
                 # 没有输出目录：保存在原文件的同一目录
-                output_file = img_file.parent / f"{img_file.stem}_nobg{img_file.suffix}"
+                output_file = img_file.parent / f"{img_file.stem}{BG_REMOVER_CONFIG['background_suffix']}{img_file.suffix}"
             
             logger.info(f"处理文件: {img_file}")
             
@@ -315,9 +315,9 @@ def main():
         if INPUT_CONFIG['output_directory']:
             output_path = Path(INPUT_CONFIG['output_directory'])
             output_path.mkdir(parents=True, exist_ok=True)
-            output_file = output_path / f"{input_path.stem}_nobg{input_path.suffix}"
+            output_file = output_path / f"{input_path.stem}{BG_REMOVER_CONFIG['background_suffix']}{input_path.suffix}"
         else:
-            output_file = input_path.parent / f"{input_path.stem}_nobg{input_path.suffix}"
+            output_file = input_path.parent / f"{input_path.stem}{BG_REMOVER_CONFIG['background_suffix']}{input_path.suffix}"
         
         logger.info(f"处理文件: {input_path.name}")
         

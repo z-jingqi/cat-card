@@ -36,5 +36,6 @@ logs/
 *.log
 
 # Python virtual environment
+.venv/
 tools/venv/
 tools/__pycache__/
