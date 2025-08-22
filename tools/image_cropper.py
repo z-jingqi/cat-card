@@ -35,8 +35,7 @@ CROP_CONFIG = {
 INPUT_CONFIG = {
     # 输入文件或目录路径，支持多个文件
     'input_files': [
-        # "assets/images/cats/ragdoll.png",  # 单个文件
-        # "assets/images/cats/siamese.jpg",  # 单个文件
+        # "assets/images/cats/bengal.png",  # 测试孟加拉猫图片
         "assets/images/cats",  # 目录（处理目录中所有图片）
     ],
     
@@ -95,6 +94,7 @@ class ImageCropper:
             with Image.open(input_path) as img:
                 # 验证裁剪区域
                 img_width, img_height = img.size
+                self.logger.info(f"原始图片尺寸: {img_width}x{img_height}")
                 left, top, right, bottom = crop_box
                 
                 if left < 0 or top < 0 or right > img_width or bottom > img_height:
@@ -152,17 +152,48 @@ class ImageCropper:
             
             with Image.open(input_path) as img:
                 img_width, img_height = img.size
+                self.logger.info(f"原始图片尺寸: {img_width}x{img_height}")
                 
-                # 计算裁剪区域
+                # 计算裁剪区域 - 从四边各裁剪指定百分比
                 left = int(img_width * horizontal_percent)
                 top = int(img_height * vertical_percent)
-                right = img_width - left
-                bottom = img_height - top
+                right = img_width - int(img_width * horizontal_percent)
+                bottom = img_height - int(img_height * vertical_percent)
                 
                 crop_box = (left, top, right, bottom)
                 self.logger.info(f"计算出的裁剪区域: {crop_box}")
+                self.logger.info(f"裁剪后尺寸: {right-left}x{bottom-top}")
                 
-                return self.crop_by_box(input_path, output_path, crop_box, quality)
+                # 直接在这里处理裁剪，而不是调用crop_by_box
+                try:
+                    # 验证裁剪区域
+                    if left < 0 or top < 0 or right > img_width or bottom > img_height:
+                        self.logger.error(f"裁剪区域 {crop_box} 超出图片边界 {img.size}")
+                        return False
+                    
+                    if left >= right or top >= bottom:
+                        self.logger.error(f"无效的裁剪区域: {crop_box}")
+                        return False
+                    
+                    # 裁剪图片
+                    cropped = img.crop(crop_box)
+                    
+                    # 生成新的输出文件名（添加_cropped后缀）
+                    output_path = self._generate_output_filename(output_path)
+                    
+                    # 确保输出目录存在
+                    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # 保存图片
+                    save_params = self._get_save_params(output_path, quality)
+                    cropped.save(output_path, **save_params)
+                    
+                    self.logger.info(f"裁剪完成: {Path(output_path).name} ({cropped.size[0]}x{cropped.size[1]})")
+                    return True
+                    
+                except Exception as e:
+                    self.logger.error(f"裁剪失败 {Path(input_path).name}: {str(e)}")
+                    return False
                 
         except Exception as e:
             self.logger.error(f"按百分比裁剪失败 {Path(input_path).name}: {str(e)}")
@@ -211,7 +242,7 @@ class ImageCropper:
             # 执行裁剪
             success = False
             
-            if 'crop_box' in crop_config:
+            if crop_config.get('crop_mode') == 'box' and 'crop_box' in crop_config:
                 # 手动指定裁剪区域
                 success = self.crop_by_box(
                     str(input_path),
@@ -219,7 +250,7 @@ class ImageCropper:
                     crop_config['crop_box'],
                     crop_config.get('quality', 95)
                 )
-            elif 'horizontal_percent' in crop_config and 'vertical_percent' in crop_config:
+            elif crop_config.get('crop_mode') == 'percentage' and 'horizontal_percent' in crop_config and 'vertical_percent' in crop_config:
                 # 按百分比裁剪
                 success = self.crop_by_percentage(
                     str(input_path),
@@ -306,20 +337,24 @@ def collect_image_files(
             if path_obj.suffix.lower() in supported_formats:
                 image_files.append(str(path_obj))
         elif path_obj.is_dir():
-            # 目录
+            # 目录 - 修复：使用glob而不是rglob，避免递归搜索
             for ext in supported_formats:
+                # 搜索当前目录下的文件
                 image_files.extend(
-                    [str(f) for f in path_obj.rglob(f'*{ext}')]
+                    [str(f) for f in path_obj.glob(f'*{ext}')]
                 )
                 image_files.extend(
-                    [str(f) for f in path_obj.rglob(f'*{ext.upper()}')]
+                    [str(f) for f in path_obj.glob(f'*{ext.upper()}')]
                 )
     elif isinstance(input_path, list):
         # 文件列表
         for file_path in input_path:
             path_obj = Path(file_path)
-            if path_obj.exists() and path_obj.suffix.lower() in supported_formats:
+            if path_obj.is_file() and path_obj.suffix.lower() in supported_formats:
                 image_files.append(str(path_obj))
+            elif path_obj.is_dir():
+                # 如果是目录，递归处理
+                image_files.extend(collect_image_files(str(path_obj), supported_formats))
     
     return sorted(list(set(image_files)))
 
