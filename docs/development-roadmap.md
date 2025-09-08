@@ -9,38 +9,38 @@ This document outlines the development tasks for the Cat Puzzle game, broken dow
 **Goal:** A playable vertical slice with basic gameplay. All assets will be placeholder primitives (squares, circles). We will focus entirely on pure mechanics.
 
 ### 1.1: Project & Core Systems Setup
-- [ ] [Code] Initialize project directory structure as defined in `architecture.md`.
-- [ ] [Code] Implement `EventManager.ts`: A simple, global event bus for decoupled communication.
-- [ ] [Code] Implement `GameManager.ts`:
-    - [ ] [Code] Basic game state machine (e.g., `Playing`, `Paused`, `GameOver`).
-    - [ ] [Code] Manages core gameplay values: `score`, `chaosValue`, `experience`.
-- [ ] [Code] Implement `ObjectPool.ts` for recycling game objects.
+- [x] [Code] Initialize project directory structure as defined in `architecture.md`.
+- [x] [Code] Implement `EventManager.ts`: A simple, global event bus for decoupled communication.
+- [x] [Code] Implement `GameManager.ts`:
+    - [x] [Code] Basic game state machine (e.g., `Playing`, `Paused`, `GameOver`).
+    - [x] [Code] Manages core gameplay values: `score`, `chaosValue`, `experience`.
+- [x] [Code] Implement `ObjectPool.ts` for recycling game objects.
 
 ### 1.2: Player Board Implementation
-- [ ] [Editor] Create a `Board` Prefab with a primitive sprite and a collider.
-- [ ] [Code] Create `PlayerCtrl.ts` to handle keyboard and/or touch input for horizontal movement.
-- [ ] [Code] Create `Board.ts` to hold basic stats (e.g., `moveSpeed`).
-- [ ] [Code & Editor] Create an `Interactor` component and attach it to the Board (`type: BOARD`).
+- [x] [Editor] Create a `Board` Prefab with a primitive sprite and a collider.
+- [x] [Code] Create `PlayerCtrl.ts` to handle keyboard and/or touch input for horizontal movement.
+- [x] [Code] Create `Board.ts` to hold basic stats (e.g., `moveSpeed`).
+- [x] [Code & Editor] Create an `Interactor` component and attach it to the Board (`type: BOARD`).
 
 ### 1.3: Basic Item & Spawning
-- [ ] [Editor] Create a basic `Item` Prefab with a primitive sprite and a collider.
-- [ ] [Code] Create `data/ItemBlueprints.ts` and define one simple "apple" blueprint.
-- [ ] [Code] Create `ItemSpawner.ts`:
-    - [ ] [Code] Uses the `ObjectPool` to get/release items.
-    - [ ] [Code] Spawns a single item type from the top of the screen at a regular interval.
-- [ ] [Code] Create `behaviors/trajectories/VerticalTrajectory.ts`.
-- [ ] [Code & Editor] Create `entities/Item.ts` and attach it to the Item prefab:
-    - [ ] [Code] Implements `IInteractable`.
-    - [ ] [Code] Hosts and calls the `update` method of its behavior components.
+- [x] [Editor] Create a basic `Item` Prefab with a primitive sprite and a collider.
+- [x] [Code] Create `data/ItemBlueprints.ts` and define one simple "apple" blueprint.
+- [x] [Code] Create `ItemSpawner.ts`:
+    - [x] [Code] Uses the `ObjectPool` to get/release items.
+    - [x] [Code] Spawns a single item type from the top of the screen at a regular interval.
+- [x] [Code] Create `behaviors/trajectories/VerticalTrajectory.ts`.
+- [x] [Code & Editor] Create `entities/Item.ts` and attach it to the Item prefab:
+    - [x] [Code] Implements `IInteractable`.
+    - [x] [Code] Hosts and calls the `update` method of its behavior components.
 
 ### 1.4: Core Gameplay Loop
-- [ ] [Editor] Set up physics collision groups for `Board` and `Item`.
-- [ ] [Code] Implement the `onInteract` method in `Item.ts`:
-    - [ ] When it collides with an `Interactor` of type `BOARD`, it fires an `ITEM_CAUGHT` event via the `EventManager` and returns itself to the object pool.
+- [x] [Editor] Set up physics collision groups for `Board` and `Item`.
+- [x] [Code] Implement the `onInteract` method in `Item.ts`:
+    - [x] When it collides with an `Interactor` of type `BOARD`, it fires an `ITEM_CAUGHT` event via the `EventManager` and returns itself to the object pool.
 - [ ] [Editor] Create a `Floor` trigger at the bottom of the screen.
     - [ ] [Code] When an item collides with the floor, it fires an `ITEM_MISSED` event and is returned to the pool.
 - [ ] [Code] `GameManager` listens for events:
-    - [ ] On `ITEM_CAUGHT`, increase score and experience.
+    - [x] On `ITEM_CAUGHT`, increase score and experience.
     - [ ] On `ITEM_MISSED`, increase `chaosValue`.
     - [ ] Check if `chaosValue` has reached the maximum, and if so, change game state to `GameOver`.
 
