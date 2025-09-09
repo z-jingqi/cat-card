@@ -37,17 +37,17 @@ This document outlines the development tasks for the Cat Puzzle game, broken dow
 - [x] [Editor] Set up physics collision groups for `Board` and `Item`.
 - [x] [Code] Implement the `onInteract` method in `Item.ts`:
     - [x] When it collides with an `Interactor` of type `BOARD`, it fires an `ITEM_CAUGHT` event via the `EventManager` and returns itself to the object pool.
-- [ ] [Editor] Create a `Floor` trigger at the bottom of the screen.
-    - [ ] [Code] When an item collides with the floor, it fires an `ITEM_MISSED` event and is returned to the pool.
-- [ ] [Code] `GameManager` listens for events:
+- [x] [Editor] Create a `Floor` trigger at the bottom of the screen.
+    - [x] [Code] When an item collides with the floor, it fires an `ITEM_MISSED` event and is returned to the pool.
+- [x] [Code] `GameManager` listens for events:
     - [x] On `ITEM_CAUGHT`, increase score and experience.
-    - [ ] On `ITEM_MISSED`, increase `chaosValue`.
+    - [x] On `ITEM_MISSED`, increase `chaosValue`.
     - [ ] Check if `chaosValue` has reached the maximum, and if so, change game state to `GameOver`.
 
 ### 1.5: Basic UI
-- [ ] [Code] Create `UIManager.ts` to manage UI updates.
-- [ ] [Editor] Create a basic in-game HUD to display `Score` and `Chaos Value`.
-- [ ] [Code] `UIManager` listens for events from `GameManager` (or polls its state) to update the display.
+- [x] [Code] Create `UIManager.ts` to manage UI updates.
+- [x] [Editor] Create a basic in-game HUD to display `Score` and `Chaos Value`.
+- [x] [Code] `UIManager` listens for events from `GameManager` (or polls its state) to update the display.
 
 ---
 
