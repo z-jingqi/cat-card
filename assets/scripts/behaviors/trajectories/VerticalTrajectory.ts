@@ -17,8 +17,8 @@ export abstract class BaseMotion extends Component {
 export class VerticalTrajectory extends BaseMotion {
     
     public move(dt: number): void {
-        const speed = this._stats.verticalSpeed || 100;
-        const pos = this.node.position;
-        this.node.setPosition(v3(pos.x, pos.y - speed * dt, pos.z));
+        // The movement is now handled by the RigidBody2D's Linear Velocity.
+        // This component is now just a "tag" to identify the movement type.
+        // We could add logic here for non-physics-based movements in the future.
     }
 }

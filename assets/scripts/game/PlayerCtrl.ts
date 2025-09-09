@@ -7,9 +7,13 @@ const { ccclass, property } = _decorator;
 export class PlayerCtrl extends Component {
     
     private _board: Board = null;
-    private _moveDir: number = 0; // -1 for left, 1 for right, 0 for stop
     private _uiTransform: UITransform = null;
     private _screenHalfWidth: number = 0;
+
+    // --- New Input State Management ---
+    private _inputStack: number[] = []; // Stack for keyboard input
+    private _touchMoveDir: number = 0;  // Direction for touch input
+    // ------------------------------------
 
     onLoad() {
         this._board = this.getComponent(Board);
@@ -39,26 +43,46 @@ export class PlayerCtrl extends Component {
     }
 
     private onKeyDown(event: EventKeyboard) {
+        let dir = 0;
         switch (event.keyCode) {
             case KeyCode.ARROW_LEFT:
             case KeyCode.KEY_A:
-                this._moveDir = -1;
+                dir = -1;
                 break;
             case KeyCode.ARROW_RIGHT:
             case KeyCode.KEY_D:
-                this._moveDir = 1;
+                dir = 1;
                 break;
+        }
+
+        if (dir !== 0) {
+            // Add to stack only if it's not already there
+            const index = this._inputStack.indexOf(dir);
+            if (index === -1) {
+                this._inputStack.push(dir);
+            }
         }
     }
 
     private onKeyUp(event: EventKeyboard) {
+        let dir = 0;
         switch (event.keyCode) {
             case KeyCode.ARROW_LEFT:
             case KeyCode.KEY_A:
+                dir = -1;
+                break;
             case KeyCode.ARROW_RIGHT:
             case KeyCode.KEY_D:
-                this._moveDir = 0;
+                dir = 1;
                 break;
+        }
+
+        if (dir !== 0) {
+            // Remove from stack
+            const index = this._inputStack.indexOf(dir);
+            if (index > -1) {
+                this._inputStack.splice(index, 1);
+            }
         }
     }
 
@@ -71,26 +95,34 @@ export class PlayerCtrl extends Component {
     }
 
     private onTouchEnd(event: EventTouch) {
-        this._moveDir = 0; // Stop movement when touch ends, could be changed
+        this._touchMoveDir = 0;
     }
 
     private handleTouchMove(event: EventTouch) {
         const touchPos = event.getUILocation();
-        const screenCenter = view.getVisibleSize().width / 2;
+        const screenCenter = this._screenHalfWidth;
         if (touchPos.x < screenCenter) {
-            this._moveDir = -1;
+            this._touchMoveDir = -1;
         } else {
-            this._moveDir = 1;
+            this._touchMoveDir = 1;
         }
     }
 
     update(deltaTime: number) {
-        if (this._moveDir === 0) {
+        let keyboardMoveDir = 0;
+        if (this._inputStack.length > 0) {
+            keyboardMoveDir = this._inputStack[this._inputStack.length - 1];
+        }
+
+        // Touch input takes precedence over keyboard
+        const finalMoveDir = this._touchMoveDir !== 0 ? this._touchMoveDir : keyboardMoveDir;
+
+        if (finalMoveDir === 0) {
             return;
         }
 
         const currentPos = this.node.position;
-        const newPosX = currentPos.x + this._moveDir * this._board.moveSpeed * deltaTime;
+        const newPosX = currentPos.x + finalMoveDir * this._board.moveSpeed * deltaTime;
         
         // Boundary check
         const halfBoardWidth = this._uiTransform.contentSize.width / 2;
