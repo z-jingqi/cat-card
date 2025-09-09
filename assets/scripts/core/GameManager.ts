@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Prefab, instantiate, view, v3 } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, view, v3, PhysicsSystem2D, EPhysics2DDrawFlags } from 'cc';
 import { eventManager } from './EventManager';
 const { ccclass, property } = _decorator;
 
@@ -15,6 +15,9 @@ export class GameManager extends Component {
 
     @property(Prefab)
     public boardPrefab: Prefab = null;
+
+    @property
+    public enablePhysicsDebug: boolean = true;
 
     private _state: GameState = GameState.MainMenu;
 
@@ -34,10 +37,14 @@ export class GameManager extends Component {
         // director.addPersistRootNode(this.node);
 
         eventManager.on('ITEM_CAUGHT', this.onItemCaught);
+        eventManager.on('ITEM_MISSED', this.onItemMissed);
+
+        this.togglePhysicsDebug(this.enablePhysicsDebug);
     }
 
     onDestroy() {
         eventManager.off('ITEM_CAUGHT', this.onItemCaught);
+        eventManager.off('ITEM_MISSED', this.onItemMissed);
     }
 
     start() {
@@ -82,5 +89,30 @@ export class GameManager extends Component {
         this.score += data.score;
         console.log(`Score: ${this.score}`);
         // We will update the UI with this new score later
+    }
+
+    private onItemMissed = () => {
+        if (this._state !== GameState.Playing) return;
+
+        this.chaosValue += 1;
+        console.log(`Chaos: ${this.chaosValue}`);
+
+        // Check for game over
+        // if (this.chaosValue >= 100) {
+        //     this.setState(GameState.GameOver);
+        // }
+    }
+
+    private togglePhysicsDebug(active: boolean) {
+        if (active) {
+            PhysicsSystem2D.instance.enable = true;
+            PhysicsSystem2D.instance.debugDrawFlags = EPhysics2DDrawFlags.Aabb |
+                EPhysics2DDrawFlags.Pair |
+                EPhysics2DDrawFlags.CenterOfMass |
+                EPhysics2DDrawFlags.Joint |
+                EPhysics2DDrawFlags.Shape;
+        } else {
+            PhysicsSystem2D.instance.debugDrawFlags = EPhysics2DDrawFlags.None;
+        }
     }
 }

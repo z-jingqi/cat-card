@@ -9,12 +9,18 @@
       {
         "index": 2,
         "name": "ITEM"
+      },
+      {
+        "index": 3,
+        "name": "FLOOR"
       }
     ],
     "collisionMatrix": {
       "0": 0,
       "1": 4,
-      "2": 2
+      "2": 10,
+      "3": 4
     }
-  }
+  },
+  "custom_joint_texture_layouts": []
 }

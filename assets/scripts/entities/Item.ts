@@ -50,11 +50,24 @@ export class Item extends Component implements IInteractable {
     }
 
     onBeginContact(selfCollider: Collider2D, otherCollider: Collider2D, contact: IPhysics2DContact | null) {
-        console.log('Item onBeginContact', selfCollider.name, otherCollider.name);
+        // Check for interaction with the Board
         const interactor = otherCollider.getComponent(Interactor);
         if (interactor) {
             this.onInteract(interactor);
+            return; // Interaction handled, no need to check for floor
         }
+
+        // Check for collision with the Floor (by group)
+        if (otherCollider.group === selfCollider.group) {
+            // This is a collision with another item, ignore it
+            return;
+        }
+
+        // If it's not an interactor and not another item, we assume it's the floor
+        eventManager.emit('ITEM_MISSED');
+        this.scheduleOnce(() => {
+            ObjectPoolManager.instance.put(this.node);
+        });
     }
 
     onInteract(interactor: Interactor) {
@@ -69,8 +82,10 @@ export class Item extends Component implements IInteractable {
                 // We can add more data like exp later
             });
 
-            // Return this node to the object pool to be reused
-            ObjectPoolManager.instance.put(this.node);
+            // Return this node to the object pool to be reused, but do it in the next frame
+            this.scheduleOnce(() => {
+                ObjectPoolManager.instance.put(this.node);
+            });
         }
     }
 }
