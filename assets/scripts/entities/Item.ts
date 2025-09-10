@@ -1,10 +1,11 @@
-import { _decorator, Component, Collider2D, IPhysics2DContact, Contact2DType } from 'cc';
+import { _decorator, Component, Collider2D, IPhysics2DContact, Contact2DType, RigidBody2D, v2 } from 'cc';
 import { ItemBlueprint } from '../data/ItemBlueprints';
 import { BaseMotion } from '../behaviors/trajectories/VerticalTrajectory';
 import { IInteractable } from '../interaction/IInteractable';
 import { Interactor, InteractorType } from '../interaction/Interactor';
 import { eventManager } from '../core/EventManager';
 import { ObjectPoolManager } from '../core/ObjectPool';
+import { GameManager, GameState } from '../core/GameManager';
 
 const { ccclass, property } = _decorator;
 

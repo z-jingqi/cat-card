@@ -1,5 +1,6 @@
 import { _decorator, Component, EventKeyboard, input, Input, KeyCode, Node, Vec3, view, UITransform, EventTouch, v3 } from 'cc';
 import { Board } from '../entities/Board';
+import { GameManager, GameState } from '../core/GameManager';
 
 const { ccclass, property } = _decorator;
 

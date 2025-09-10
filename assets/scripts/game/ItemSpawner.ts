@@ -3,6 +3,7 @@ import { ItemBlueprints } from '../data/ItemBlueprints';
 import { ObjectPoolManager } from '../core/ObjectPool';
 import { Item } from '../entities/Item';
 import { VerticalTrajectory } from '../behaviors/trajectories/VerticalTrajectory';
+import { GameManager, GameState } from '../core/GameManager';
 
 const { ccclass, property } = _decorator;
 

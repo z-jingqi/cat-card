@@ -1,5 +1,6 @@
 import { _decorator, Component, Node, Prefab, instantiate, view, v3, PhysicsSystem2D, EPhysics2DDrawFlags } from 'cc';
 import { eventManager } from './EventManager';
+import { BuffManager } from '../buffs/BuffManager';
 const { ccclass, property } = _decorator;
 
 export enum GameState {
@@ -20,11 +21,15 @@ export class GameManager extends Component {
     public enablePhysicsDebug: boolean = true;
 
     private _state: GameState = GameState.MainMenu;
+    private _buffManager: BuffManager = null;
 
     // --- Game Values ---
     public score: number = 0;
     public chaosValue: number = 0;
     public experience: number = 0;
+    public chaosMax: number = 10; // Let's set a small max value for easy testing
+    public currentLevel: number = 1;
+    public expToNextLevel: number = 100;
     // -------------------
 
     onLoad() {
@@ -35,6 +40,8 @@ export class GameManager extends Component {
         GameManager.instance = this;
         // Optional: Persist this node across scene changes if needed
         // director.addPersistRootNode(this.node);
+
+        this._buffManager = this.addComponent(BuffManager);
 
         eventManager.on('ITEM_CAUGHT', this.onItemCaught);
         eventManager.on('ITEM_MISSED', this.onItemMissed);
@@ -62,6 +69,8 @@ export class GameManager extends Component {
             if (this.node.parent) {
                 this.node.parent.addChild(boardNode);
             }
+
+            this._buffManager.setBoardNode(boardNode);
         } else {
             console.error("Board Prefab is not assigned in the GameManager inspector!");
         }
@@ -87,7 +96,12 @@ export class GameManager extends Component {
         if (this._state !== GameState.Playing) return;
 
         this.score += data.score;
+        this.experience += 25; // Let's say every item gives 25 exp for now
+
         console.log(`Score: ${this.score}`);
+        console.log(`EXP: ${this.experience} / ${this.expToNextLevel}`);
+
+        this.checkForLevelUp();
         // We will update the UI with this new score later
     }
 
@@ -95,12 +109,25 @@ export class GameManager extends Component {
         if (this._state !== GameState.Playing) return;
 
         this.chaosValue += 1;
-        console.log(`Chaos: ${this.chaosValue}`);
+        console.log(`Chaos: ${this.chaosValue} / ${this.chaosMax}`);
 
         // Check for game over
-        // if (this.chaosValue >= 100) {
-        //     this.setState(GameState.GameOver);
-        // }
+        if (this.chaosValue >= this.chaosMax) {
+            this.setState(GameState.GameOver);
+        }
+    }
+
+    private checkForLevelUp() {
+        if (this.experience >= this.expToNextLevel) {
+            this.currentLevel++;
+            this.experience -= this.expToNextLevel;
+            
+            // Increase the EXP requirement for the next level (e.g., by 50)
+            this.expToNextLevel += 50; 
+
+            console.log(`LEVEL UP! New level: ${this.currentLevel}`);
+            eventManager.emit('EXP_FULL');
+        }
     }
 
     private togglePhysicsDebug(active: boolean) {
