@@ -42,7 +42,7 @@ This document outlines the development tasks for the Cat Puzzle game, broken dow
 - [x] [Code] `GameManager` listens for events:
     - [x] On `ITEM_CAUGHT`, increase score and experience.
     - [x] On `ITEM_MISSED`, increase `chaosValue`.
-    - [ ] Check if `chaosValue` has reached the maximum, and if so, change game state to `GameOver`.
+    - [x] Check if `chaosValue` has reached the maximum, and if so, change game state to `GameOver`.
 
 ### 1.5: Basic UI
 - [x] [Code] Create `UIManager.ts` to manage UI updates.
@@ -56,29 +56,29 @@ This document outlines the development tasks for the Cat Puzzle game, broken dow
 **Goal:** Implement the systems for in-run upgrades (buffs) and between-run progression (meta).
 
 ### 2.1: In-Run Buff System
-- [ ] [Code] `GameManager` checks `experience` after each gain and fires `EXP_FULL` event when a threshold is met.
-- [ ] [Code] Create `data/BuffLibrary.ts` with definitions for 3-5 simple, stat-based buffs.
-- [ ] [Code] Create `buffs/BuffManager.ts` that listens for `EXP_FULL`.
-- [ ] [Code] When triggered, `BuffManager` should:
-    - [ ] Pause the game (`GameManager.state = Paused`).
-    - [ ] Select 3 random, unique buffs from the `BuffLibrary`.
-    - [ ] Fire a `SHOW_BUFF_SELECTION` event with the buff data.
-- [ ] [Code & Editor] `UIManager` listens for `SHOW_BUFF_SELECTION` and displays a simple UI panel with 3 buttons.
-- [ ] [Code] When a buff is chosen, `UIManager` fires a `BUFF_SELECTED` event.
-- [ ] [Code] `BuffManager` listens for `BUFF_SELECTED`, applies the buff's effect, and unpauses the game.
+- [x] [Code] `GameManager` checks `experience` after each gain and fires `EXP_FULL` event when a threshold is met.
+- [x] [Code] Create `data/BuffLibrary.ts` with definitions for 3-5 simple, stat-based buffs.
+- [x] [Code] Create `buffs/BuffManager.ts` that listens for `EXP_FULL`.
+- [x] [Code] When triggered, `BuffManager` should:
+    - [x] Pause the game (`GameManager.state = Paused`).
+    - [x] Select 3 random, unique buffs from the `BuffLibrary`.
+    - [x] Fire a `SHOW_BUFF_SELECTION` event with the buff data.
+- [x] [Code & Editor] `UIManager` listens for `SHOW_BUFF_SELECTION` and displays a simple UI panel with 3 buttons.
+- [x] [Code] When a buff is chosen, `UIManager` fires a `BUFF_SELECTED` event.
+- [x] [Code] `BuffManager` listens for `BUFF_SELECTED`, applies the buff's effect, and unpauses the game.
 
 ### 2.2: Stat & Modifier System
-- [ ] [Code] Create `entities/StatSheet.ts` component.
-- [ ] [Code] Refactor `Board.ts` to use a `StatSheet` for its stats (`moveSpeed`, etc.).
-- [ ] [Code] Refactor `BuffManager` to apply `Modifiers` to the `Board`'s `StatSheet` upon buff selection, instead of directly changing values. The effect should be immediate.
+- [x] [Code] Create `entities/StatSheet.ts` component.
+- [x] [Code] Refactor `Board.ts` to use a `StatSheet` for its stats (`moveSpeed`, etc.).
+- [x] [Code] Refactor `BuffManager` to apply `Modifiers` to the `Board`'s `StatSheet` upon buff selection, instead of directly changing values. The effect should be immediate.
 
 ### 2.3: Meta-Progression
-- [ ] [Code] On `GameOver`, `GameManager` calculates and awards `gold`.
-- [ ] [Code] Create `data/PlayerData.ts` to define the structure for saved data (e.g., `totalGold`, `permanentUpgrades`).
-- [ ] [Code] Create `core/DataManager.ts` to save and load the `PlayerData` object to/from `sys.localStorage`.
-- [ ] [Editor] Create a simple "Main Menu" scene.
-- [ ] [Code & Editor] Create a basic "Store" UI in the menu to spend gold on permanent upgrades (e.g., permanent +5% base move speed).
-- [ ] [Code] At the start of a run, `GameManager` loads permanent upgrades from `DataManager` and applies them as initial `Modifiers` to the player's `StatSheet`.
+- [x] [Code] On `GameOver`, `GameManager` calculates and awards `gold`.
+- [x] [Code] Create `data/PlayerData.ts` to define the structure for saved data (e.g., `totalGold`, `permanentUpgrades`).
+- [x] [Code] Create `core/DataManager.ts` to save and load the `PlayerData` object to/from `sys.localStorage`.
+- [x] [Editor] Create a simple "Main Menu" scene.
+- [x] [Code & Editor] Create a basic "Store" UI in the menu to spend gold on permanent upgrades (e.g., permanent +5% base move speed).
+- [x] [Code] At the start of a run, `GameManager` loads permanent upgrades from `DataManager` and applies them as initial `Modifiers` to the player's `StatSheet`.
 
 ---
 

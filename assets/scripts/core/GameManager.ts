@@ -2,6 +2,7 @@ import { _decorator, Component, Node, Prefab, instantiate, view, v3, PhysicsSyst
 import { eventManager } from './EventManager';
 import { BuffManager } from '../buffs/BuffManager';
 import { DataManager } from './DataManager';
+import { PermanentUpgrades } from '../data/PermanentUpgrades';
 
 const { ccclass, property } = _decorator;
 
@@ -72,6 +73,8 @@ export class GameManager extends Component {
                 this.node.parent.addChild(boardNode);
             }
 
+            this.applyPermanentUpgrades(boardNode);
+
             this._buffManager.setBoardNode(boardNode);
         } else {
             console.error("Board Prefab is not assigned in the GameManager inspector!");
@@ -120,6 +123,25 @@ export class GameManager extends Component {
 
         this.checkForLevelUp();
         // We will update the UI with this new score later
+    }
+
+    private applyPermanentUpgrades(boardNode: Node) {
+        const board = boardNode.getComponent('Board') as import('../entities/Board').Board;
+        if (!board || !board.statSheet) {
+            console.error("Board or StatSheet not found on the instantiated board prefab.");
+            return;
+        }
+
+        const playerData = DataManager.instance.data;
+        for (const upgradeId in playerData.permanentUpgrades) {
+            const savedUpgrade = playerData.permanentUpgrades[upgradeId];
+            const blueprint = PermanentUpgrades[savedUpgrade.id];
+
+            if (blueprint) {
+                console.log(`Applying permanent upgrade: ${blueprint.name}, Level: ${savedUpgrade.level}`);
+                blueprint.applyEffect(board.statSheet, savedUpgrade.level);
+            }
+        }
     }
 
     private onItemMissed = () => {
