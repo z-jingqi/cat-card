@@ -1,11 +1,11 @@
-import { _decorator, Component, Collider2D, IPhysics2DContact, Contact2DType, RigidBody2D, v2 } from 'cc';
+import { _decorator, Component, Collider2D, IPhysics2DContact, Contact2DType, RigidBody2D, v2, Vec2 } from 'cc';
 import { ItemBlueprint } from '../data/ItemBlueprints';
 import { BaseMotion } from '../behaviors/trajectories/VerticalTrajectory';
 import { IInteractable } from '../interaction/IInteractable';
 import { Interactor, InteractorType } from '../interaction/Interactor';
 import { eventManager } from '../core/EventManager';
 import { ObjectPoolManager } from '../core/ObjectPool';
-import { GameManager, GameState } from '../core/GameManager';
+import { GlobalStats } from '../core/GlobalStats';
 
 const { ccclass, property } = _decorator;
 
@@ -15,25 +15,36 @@ export class Item extends Component implements IInteractable {
     private _blueprint: ItemBlueprint = null;
     private _stats: any = {};
     private _motionComponents: BaseMotion[] = [];
-
-    public setup(blueprint: ItemBlueprint) {
-        this._blueprint = blueprint;
-        // For now, we'll just copy base stats. Later this will use the modifier system.
-        this._stats = { ...blueprint.baseStats };
-
-        // This is a simplified version. The final spawner will add components dynamically.
-        const motion = this.getComponent(BaseMotion);
-        if (motion) {
-            motion.setup(this._stats);
-            this._motionComponents.push(motion);
-        }
-    }
+    private _rigidBody: RigidBody2D = null;
 
     onLoad() {
-        // Registering for collision events
+        this._rigidBody = this.getComponent(RigidBody2D);
+        if (!this._rigidBody) {
+            console.error("Item component requires a RigidBody2D component.");
+        }
+
         const collider = this.getComponent(Collider2D);
         if (collider) {
             collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
+        }
+    }
+    
+    public setup(blueprint: ItemBlueprint) {
+        this._blueprint = blueprint;
+        this._stats = { ...blueprint.baseStats };
+
+        // Apply global speed modifiers to the item's base speed
+        const fallSpeed = (this._stats.fallSpeed || 100) * GlobalStats.itemFallSpeed.value;
+        if (this._rigidBody) {
+            this._rigidBody.linearVelocity = v2(0, -fallSpeed);
+        }
+
+        const motion = this.getComponent(BaseMotion);
+        if (motion) {
+            motion.setup(this._stats);
+            if (!this._motionComponents.includes(motion)) {
+                this._motionComponents.push(motion);
+            }
         }
     }
 
@@ -45,6 +56,12 @@ export class Item extends Component implements IInteractable {
     }
 
     update(deltaTime: number) {
+        // Recalculate fall speed every frame to react to changes in global stats
+        const fallSpeed = (this._stats.fallSpeed || 100) * GlobalStats.itemFallSpeed.value;
+        if (this._rigidBody && Math.abs(this._rigidBody.linearVelocity.y - (-fallSpeed)) > 0.1) {
+            this._rigidBody.linearVelocity = v2(this._rigidBody.linearVelocity.x, -fallSpeed);
+        }
+
         for (const motion of this._motionComponents) {
             motion.move(deltaTime);
         }
@@ -80,7 +97,7 @@ export class Item extends Component implements IInteractable {
             // Announce that this item was caught, sending its stats
             eventManager.emit('ITEM_CAUGHT', {
                 score: this._stats.score || 0,
-                // We can add more data like exp later
+                experience: this._stats.experience || 0,
             });
 
             // Return this node to the object pool to be reused, but do it in the next frame

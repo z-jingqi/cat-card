@@ -20,6 +20,7 @@ export const ItemBlueprints: Record<string, ItemBlueprint> = {
         sprite: "apple.png",
         baseStats: {
             score: 100,
+            experience: 25,
             verticalSpeed: 200, // pixels per second
         },
         motionComponents: [ "VerticalTrajectory" ],

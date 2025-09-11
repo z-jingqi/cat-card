@@ -122,8 +122,9 @@ export class PlayerCtrl extends Component {
             return;
         }
 
+        const moveSpeed = this._board.statSheet.getStat("moveSpeed").value;
         const currentPos = this.node.position;
-        const newPosX = currentPos.x + finalMoveDir * this._board.moveSpeed * deltaTime;
+        const newPosX = currentPos.x + finalMoveDir * moveSpeed * deltaTime;
         
         // Boundary check
         const halfBoardWidth = this._uiTransform.contentSize.width / 2;

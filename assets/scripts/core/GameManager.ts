@@ -1,6 +1,8 @@
-import { _decorator, Component, Node, Prefab, instantiate, view, v3, PhysicsSystem2D, EPhysics2DDrawFlags } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, view, v3, PhysicsSystem2D, EPhysics2DDrawFlags, director } from 'cc';
 import { eventManager } from './EventManager';
 import { BuffManager } from '../buffs/BuffManager';
+import { DataManager } from './DataManager';
+
 const { ccclass, property } = _decorator;
 
 export enum GameState {
@@ -84,6 +86,21 @@ export class GameManager extends Component {
         this._state = newState;
         console.log(`Game state changed to: ${GameState[newState]}`);
 
+        switch (newState) {
+            case GameState.Playing:
+                // Potentially unpause things here if coming from a paused state
+                break;
+            case GameState.Paused:
+                // director.pause(); // Or handle pausing more granularly
+                break;
+            case GameState.GameOver:
+                director.pause();
+                console.log("--- GAME OVER ---");
+                console.log(`Final Score: ${this.score}`);
+                this.handleRunEnd();
+                break;
+        }
+
         // We can emit an event here to let other systems know about the state change
         // eventManager.emit('GAME_STATE_CHANGED', newState);
     }
@@ -92,11 +109,11 @@ export class GameManager extends Component {
         return this._state;
     }
 
-    private onItemCaught = (data: { score: number }) => {
+    private onItemCaught = (data: { score: number, experience: number }) => {
         if (this._state !== GameState.Playing) return;
 
         this.score += data.score;
-        this.experience += 25; // Let's say every item gives 25 exp for now
+        this.experience += data.experience;
 
         console.log(`Score: ${this.score}`);
         console.log(`EXP: ${this.experience} / ${this.expToNextLevel}`);
@@ -128,6 +145,19 @@ export class GameManager extends Component {
             console.log(`LEVEL UP! New level: ${this.currentLevel}`);
             eventManager.emit('EXP_FULL');
         }
+    }
+
+    private handleRunEnd() {
+        // Calculate gold earned from this run
+        const goldEarned = Math.floor(this.score / 10);
+        console.log(`Gold earned this run: ${goldEarned}`);
+
+        // Update and save player data
+        const dataManager = DataManager.instance;
+        dataManager.data.totalGold += goldEarned;
+        dataManager.save();
+
+        console.log(`Total gold is now: ${dataManager.data.totalGold}`);
     }
 
     private togglePhysicsDebug(active: boolean) {
